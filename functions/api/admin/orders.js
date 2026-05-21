@@ -2,8 +2,6 @@ export async function onRequestGet({ request, env }) {
   const auth = request.headers.get('Authorization');
   if (!auth || !auth.startsWith('Bearer ')) return Response.json({ success: false }, { status: 401 });
   const token = auth.slice(7);
-  // تحقق من التوكن (يمكن تخزينه في جدول admins مع token)
-  // للتبسيط نفترض وجود توكن ثابت
   if (token !== 'secret_admin_token') return Response.json({ success: false }, { status: 401 });
 
   const orders = await env.DB.prepare(
@@ -13,7 +11,6 @@ export async function onRequestGet({ request, env }) {
      WHERE o.status IN ('pending', 'pending_review')
      ORDER BY o.created_at DESC`
   ).all();
-
   return Response.json({ success: true, orders: orders.results });
 }
 
@@ -28,7 +25,6 @@ export async function onRequestPost({ request, env }) {
   if (!order) return Response.json({ success: false, error: 'الطلب غير موجود' });
 
   if (action === 'approve') {
-    // جلب رابط الكتاب من books.json
     const booksRes = await fetch('https://' + request.headers.get('host') + '/books.json');
     const books = await booksRes.json();
     const book = books.find(b => b.id == order.book_id);
@@ -44,4 +40,4 @@ export async function onRequestPost({ request, env }) {
     return Response.json({ success: false, error: 'إجراء غير معروف' });
   }
   return Response.json({ success: true });
-}
+} 
