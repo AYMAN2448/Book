@@ -20,6 +20,7 @@
   <div id="ordersList"></div>
 </div>
 
+<!-- مودال رفع الإيصال -->
 <div class="modal" id="proofModal">
   <div class="modal-content">
     <h3>رفع إثبات الدفع</h3>
@@ -29,35 +30,42 @@
   </div>
 </div>
 
-<!-- زر الدعم -->
-<div class="support-float">
-  <div class="support-btn" id="supportBtn" onclick="toggleSupportMenu()">💬</div>
-  <div class="support-menu" id="supportMenu">
-    <a href="https://t.me/username" target="_blank" class="telegram">📱 الدعم عبر تيليجرام</a>
-    <a href="https://m.me/pageusername" target="_blank" class="facebook">📘 الدعم عبر فيسبوك</a>
-  </div>
-</div>
-
 <script src="/script.js"></script>
 <script>
 let currentOrderId = null;
 loadOrders();
+
 async function loadOrders() {
   const res = await api('/api/orders');
   if (!res.success) return;
   const orders = res.orders;
   const list = document.getElementById('ordersList');
-  if (!orders.length) { list.innerHTML = '<p>لا توجد طلبات بعد</p>'; return; }
+  if (!orders.length) {
+    list.innerHTML = '<p>لا توجد طلبات بعد</p>';
+    return;
+  }
   list.innerHTML = orders.map(o => `
     <div class="card">
       <h3>${o.book_title}</h3>
       <p>الطريقة: ${o.method} | المبلغ: ${o.amount} $</p>
-      <p>الحالة: <span class="status ${o.status}">${o.status === 'pending' ? 'قيد الانتظار' : (o.status === 'pending_review' ? 'مراجعة' : (o.status === 'approved' ? 'تمت الموافقة' : 'مرفوض'))}</span></p>
+      <p>الحالة: <span class="status ${o.status}">${
+        o.status === 'pending' ? 'قيد الانتظار' :
+        o.status === 'pending_review' ? 'مراجعة' :
+        o.status === 'approved' ? 'تمت الموافقة' : 'مرفوض'
+      }</span></p>
       ${o.status === 'approved' && o.file_url ? `<a href="${o.file_url}" target="_blank" class="btn">تحميل الكتاب</a>` : ''}
       ${(o.status === 'pending' && o.method === 'bank') ? `<button class="btn" onclick="openProofModal(${o.id})">رفع إيصال الدفع</button>` : ''}
+      ${(o.status === 'pending' && (o.method === 'trx' || o.method === 'usdt')) ? `<button class="btn" onclick="resumePayment(${o.id}, '${o.method}', ${o.amount})">استكمال الدفع</button>` : ''}
     </div>
   `).join('');
 }
+
+function resumePayment(orderId, method, amount) {
+  // تخزين بيانات الطلب في sessionStorage لتتم قراءتها في books.html
+  sessionStorage.setItem('resumeOrder', JSON.stringify({ orderId, method, amount }));
+  window.location.href = '/books.html?resume=true';
+}
+
 function openProofModal(id) { currentOrderId = id; document.getElementById('proofModal').classList.add('active'); }
 function closeProofModal() { document.getElementById('proofModal').classList.remove('active'); }
 async function submitProof() {
@@ -69,4 +77,4 @@ async function submitProof() {
 }
 </script>
 </body>
-</html> 
+</html>
