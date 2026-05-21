@@ -11,6 +11,9 @@
   .copy-address { flex: 1; font-family: monospace; font-size: 14px; cursor: pointer; user-select: all; }
   .copy-btn { background: #e94560; color: white; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
   .toast-msg { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 16px; border-radius: 30px; z-index: 2000; }
+  .info-block { background: #f9f9f9; border-right: 4px solid #e94560; padding: 12px; border-radius: 12px; margin: 10px 0; }
+  .info-block h4 { margin-bottom: 8px; color: #e94560; }
+  .info-block p { margin: 5px 0; }
 </style>
 </head>
 <body>
@@ -38,19 +41,24 @@
     </select>
     <p>سعر الكتاب: <span id="bookPrice"></span></p>
 
-    <!-- بيانات التحويل البنكي (تظهر فقط عند اختيار bank) -->
-    <div id="bankAccountInfo" style="display:none; background:#f9f9f9; padding:12px; border-radius:12px; margin:10px 0; border:1px solid #ddd;">
-      <h4>📌 بيانات التحويل البنكي / كاشي:</h4>
-      <p><strong>اسم البنك:</strong> <span id="bankName">بنك الخرطوم</span></p>
-      <p><strong>اسم المستفيد:</strong> <span id="beneficiary">مؤسسة مكتبة الكتب</span></p>
-      <p><strong>رقم الحساب:</strong> <span id="accountNumber">1234567890</span></p>
-      <p><strong>📱 كاشي (Cash):</strong> <span id="cashNumber">0912345678</span></p>
-      <p><strong>الملاحظات:</strong> اذكر رقم الطلب (سيظهر بعد التأكيد) عند الإرسال</p>
+    <!-- بيانات التحويل البنكي / كاشي (تظهر فقط عند اختيار bank) -->
+    <div id="bankAccountInfo" style="display:none;">
+      <div class="info-block">
+        <h4>🏦 تحويل بنكي:</h4>
+        <p><strong>رقم الحساب:</strong> 1234567890</p>
+        <p><strong>اسم صاحب الحساب:</strong> مؤسسة مكتبة الكتب</p>
+        <p><strong>تعليق:</strong> اكتب في إشعار التحويل: <span id="bookTitlePlaceholder"></span> - رقم الطلب (سيظهر بعد التأكيد)</p>
+      </div>
+      <div class="info-block">
+        <h4>📱 تحويل كاشي:</h4>
+        <p><strong>رقم الحساب:</strong> 0912345678</p>
+        <p><strong>اسم صاحب الحساب:</strong> مؤسسة مكتبة الكتب</p>
+      </div>
     </div>
 
     <div id="bankProofDiv" style="display:none;">
       <label>رقم الإيصال / معرف التحويل:</label>
-      <input type="text" id="bankProof" placeholder="أدخل رقم الإيصال">
+      <input type="text" id="bankProof" placeholder="أدخل رقم الإيصال بعد التحويل">
     </div>
 
     <div id="autoPaymentInfo" style="display:none; background:#f0f0f0; padding:10px; border-radius:8px; margin:10px 0;"></div>
@@ -100,6 +108,8 @@ fetch('/books.json')
 
 function openModal(book) {
   selectedBook = book;
+  // تعيين اسم الكتاب في التعليق
+  document.getElementById('bookTitlePlaceholder').innerText = book.title;
   const method = document.getElementById('payMethod').value;
   updatePriceAndInfo(method);
   document.getElementById('payModal').classList.add('active');
@@ -142,7 +152,7 @@ async function createOrder() {
   let proof = null;
   if (method === 'bank') {
     proof = document.getElementById('bankProof').value.trim();
-    if (!proof) return showToast('يرجى إدخال رقم الإيصال');
+    if (!proof) return showToast('يرجى إدخال رقم الإيصال بعد التحويل');
   }
   const res = await api('/api/create-invoice', 'POST', {
     bookId: selectedBook.id,
@@ -152,7 +162,8 @@ async function createOrder() {
   });
   if (res.success) {
     if (method === 'bank') {
-      showToast('تم إنشاء الطلب. سيتم مراجعة الإيصال');
+      // الطلب اليدوي: نعرض رقم الطلب مباشرة في تنبيه ثم نوجه لصفحة الطلبات
+      alert(`✅ تم إنشاء الطلب رقم: ${res.orderId}\n\n📌 استخدم هذا الرقم عند التحويل البنكي أو كاشي.\nبعد التحويل، سجل رقم الإيصال في حقل الإثبات.\n\nسيتم مراجعة الطلب من قبل الأدمن.`);
       window.location.href = '/orders.html';
     } else {
       currentOrderId = res.orderId;
