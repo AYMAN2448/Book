@@ -6,12 +6,6 @@
 <title>طلباتي - مكتبة الكتب</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
-<style>
-  .copy-container { display: flex; align-items: center; gap: 8px; background: #fff; padding: 8px 12px; border-radius: 8px; direction: ltr; margin: 10px 0; border: 1px solid #ddd; }
-  .copy-address { flex: 1; font-family: monospace; font-size: 14px; cursor: pointer; user-select: all; }
-  .copy-btn { background: #e94560; color: white; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
-  .toast-msg { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 16px; border-radius: 30px; z-index: 2000; }
-</style>
 </head>
 <body>
 <header>
@@ -26,7 +20,7 @@
   <div id="ordersList"></div>
 </div>
 
-<!-- مودال رفع الإيصال للتحويل البنكي -->
+<!-- مودال رفع الإيصال -->
 <div class="modal" id="proofModal">
   <div class="modal-content">
     <h3>رفع إثبات الدفع</h3>
@@ -36,7 +30,7 @@
   </div>
 </div>
 
-<!-- مودال استكمال الدفع للعملات الرقمية -->
+<!-- مودال استكمال الدفع -->
 <div class="modal" id="resumePaymentModal">
   <div class="modal-content">
     <h3>استكمال الدفع</h3>
@@ -64,9 +58,10 @@ async function loadOrders() {
     list.innerHTML = '<p>لا توجد طلبات بعد</p>';
     return;
   }
+
   list.innerHTML = orders.map(o => `
     <div class="card">
-      <h3>${o.book_title}</h3>
+      <h3>${o.book_title || 'كتاب غير معروف'}</h3>
       <p>الطريقة: ${o.method} | المبلغ: ${o.amount} $</p>
       <p>الحالة: <span class="status ${o.status}">${
         o.status === 'pending' ? 'قيد الانتظار' :
@@ -83,7 +78,16 @@ async function loadOrders() {
   `).join('');
 }
 
-// ========== استكمال الدفع ==========
+function openProofModal(id) { currentOrderId = id; document.getElementById('proofModal').classList.add('active'); }
+function closeProofModal() { document.getElementById('proofModal').classList.remove('active'); }
+async function submitProof() {
+  const proof = document.getElementById('proofNumber').value.trim();
+  if (!proof) return toast('أدخل رقم الإيصال');
+  const res = await api('/api/submit-proof', 'POST', { orderId: currentOrderId, proof });
+  if (res.success) { toast('تم رفع الإيصال'); closeProofModal(); loadOrders(); }
+  else toast('خطأ: ' + res.error);
+}
+
 function openResumeModal(orderId, method, amount) {
   resumeOrderId = orderId;
   resumeMethod = method;
@@ -102,13 +106,10 @@ function openResumeModal(orderId, method, amount) {
   `;
   document.getElementById('resumePaymentModal').classList.add('active');
 }
-function closeResumeModal() {
-  document.getElementById('resumePaymentModal').classList.remove('active');
-  resumeOrderId = null;
-}
+function closeResumeModal() { document.getElementById('resumePaymentModal').classList.remove('active'); }
 async function verifyResumePayment() {
   if (!resumeOrderId) return;
-  toast('جاري التحقق من الدفع...');
+  toast('جاري التحقق...');
   const res = await api('/api/verify-payment', 'POST', { orderId: resumeOrderId, method: resumeMethod });
   if (res.success && res.approved) {
     toast('✅ تم تأكيد الدفع! سيتم تحديث الصفحة');
@@ -118,26 +119,14 @@ async function verifyResumePayment() {
     toast('❌ لم يتم العثور على الدفع. تأكد من المبلغ والمذكرة.');
   }
 }
-
-// ========== رفع الإيصال ==========
-function openProofModal(id) { currentOrderId = id; document.getElementById('proofModal').classList.add('active'); }
-function closeProofModal() { document.getElementById('proofModal').classList.remove('active'); }
-async function submitProof() {
-  const proof = document.getElementById('proofNumber').value.trim();
-  if (!proof) return toast('أدخل رقم الإيصال');
-  const res = await api('/api/submit-proof', 'POST', { orderId: currentOrderId, proof });
-  if (res.success) { toast('تم رفع الإيصال'); closeProofModal(); loadOrders(); }
-  else toast('خطأ: ' + res.error);
-}
-
 function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(() => showToast('✅ تم نسخ العنوان')).catch(() => showToast('❌ فشل النسخ'));
+  navigator.clipboard.writeText(text).then(() => toast('✅ تم نسخ العنوان')).catch(() => toast('❌ فشل النسخ'));
 }
-function showToast(msg) {
-  let toast = document.querySelector('.toast-msg');
-  if (!toast) { toast = document.createElement('div'); toast.className = 'toast-msg'; document.body.appendChild(toast); }
-  toast.innerText = msg; toast.style.display = 'block';
-  setTimeout(() => toast.style.display = 'none', 2000);
+function toast(msg) {
+  let t = document.querySelector('.toast-msg');
+  if (!t) { t = document.createElement('div'); t.className = 'toast-msg'; document.body.appendChild(t); }
+  t.innerText = msg; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2000);
 }
 </script>
 </body>
