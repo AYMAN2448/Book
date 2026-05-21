@@ -2,17 +2,13 @@ export async function onRequestPost({ request, env }) {
   try {
     const { bookId, method, amount, proof } = await request.json();
     const sessionId = request.headers.get('X-Session-Id');
-    if (!sessionId) {
-      return Response.json({ success: false, error: 'لا توجد جلسة' }, { status: 400 });
-    }
+    if (!sessionId) return Response.json({ success: false, error: 'لا توجد جلسة' }, { status: 400 });
 
     // جلب بيانات الكتاب من books.json
     const booksRes = await fetch('https://' + request.headers.get('host') + '/books.json');
     const books = await booksRes.json();
     const book = books.find(b => b.id == bookId);
-    if (!book) {
-      return Response.json({ success: false, error: 'الكتاب غير موجود' });
-    }
+    if (!book) return Response.json({ success: false, error: 'الكتاب غير موجود' });
 
     let status = 'pending';
     if (method === 'bank' && proof) {
