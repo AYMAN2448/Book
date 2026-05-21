@@ -7,7 +7,8 @@ export async function onRequestPost({ request, env }) {
       return Response.json({ success: false, error: "بيانات ناقصة" }, { status: 400 });
     }
 
-    const books = await fetch('https://' + request.headers.get('host') + '/books.json').then(r => r.json());
+    const host = request.headers.get('host');
+    const books = await fetch(`https://${host}/books.json`).then(r => r.json());
     const book = books.find(b => b.id == bookId);
     if (!book) return Response.json({ success: false, error: "الكتاب غير موجود" }, { status: 404 });
 
@@ -15,11 +16,11 @@ export async function onRequestPost({ request, env }) {
     const status = autoApprove ? 'approved' : 'pending';
 
     const result = await env.DB.prepare(
-      "INSERT INTO orders (session_id, book_id, book_title, price, method, status) VALUES (?, ?, ?) RETURNING id"
+      "INSERT INTO orders (session_id, book_id, book_title, price, method, status) VALUES (?, ?, ?, ?, ?, ?) RETURNING id"
     ).bind(sessionId, bookId, book.title, amount, method, status).first();
 
     if (autoApprove) {
-      await env.DB.prepare("UPDATE orders SET file_url =? WHERE id =?").bind(book.file_url, result.id).run();
+      await env.DB.prepare("UPDATE orders SET file_url = ? WHERE id = ?").bind(book.file_url, result.id).run();
     }
 
     return Response.json({ success: true, orderId: result.id, autoApprove });
