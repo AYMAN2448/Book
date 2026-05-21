@@ -113,7 +113,7 @@ function closeModal() {
   document.getElementById('payModal').classList.remove('active');
 }
 
-// إنشاء طلب جديد
+// إنشاء طلب جديد (مع عرض رقم الطلب فوراً)
 async function createOrder() {
   const method = document.getElementById('payMethod').value;
   const amount = selectedBook.price;
@@ -133,28 +133,29 @@ async function createOrder() {
       toast('تم إنشاء الطلب. سيتم مراجعة الإيصال من قبل الأدمن');
       window.location.href = '/orders.html';
     } else {
-      // الدفع الرقمي: تخزين رقم الطلب والطريقة
+      // ✅ تخزين رقم الطلب
       currentOrderId = res.orderId;
       currentMethod = method;
       let address = method === 'trx' ? 'TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L' : '0x1b90069d9503e1931d30a8884080cdf16bd0cded';
       
-      // عرض معلومات الدفع داخل المودال
+      // ✅ عرض تنبيه واضح برقم الطلب ومعلومات الدفع
+      alert(`✅ تم إنشاء الطلب رقم: ${currentOrderId}\n\nالمبلغ: ${amount} ${method.toUpperCase()}\nالعنوان: ${address}\n\n📌 مهم جداً: اكتب رقم الطلب (${currentOrderId}) في خانة المذكرة (Memo) عند إرسال العملة.\n\nبعد الإرسال، اضغط "تحققت من الدفع" أدناه.`);
+      
+      // ✅ عرض المعلومات داخل المودال أيضاً
       const autoDiv = document.getElementById('autoPaymentInfo');
       autoDiv.innerHTML = `
         <p><strong>✅ رقم الطلب:</strong> ${currentOrderId}</p>
         <p>أرسل <strong>${amount} ${method.toUpperCase()}</strong> إلى العنوان التالي:</p>
         <p style="direction:ltr; word-break:break-all; background:#fff; padding:8px; border-radius:6px;">${address}</p>
-        <p>📌 <strong>هام جداً:</strong> اكتب رقم الطلب <strong>${currentOrderId}</strong> في خانة المذكرة (Memo).</p>
-        <p>بعد إتمام الإرسال، اضغط زر "تحققت من الدفع" أدناه.</p>
+        <p>📌 <strong>هام:</strong> اكتب رقم الطلب <strong>${currentOrderId}</strong> في المذكرة (Memo).</p>
+        <p>بعد إتمام الإرسال، اضغط زر "تحققت من الدفع".</p>
       `;
       autoDiv.style.display = 'block';
       
-      // تغيير الزر إلى "تحققت من الدفع"
+      // تغيير الزر إلى تحققت من الدفع
       const confirmBtn = document.getElementById('confirmPayBtn');
       confirmBtn.innerHTML = '🔍 تحققت من الدفع';
       confirmBtn.onclick = () => verifyPayment(currentOrderId, currentMethod);
-      
-      toast('تم إنشاء الطلب. يرجى إتمام الدفع ثم الضغط على تحققت من الدفع');
     }
   } else {
     toast('خطأ: ' + res.error);
