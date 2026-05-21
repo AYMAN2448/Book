@@ -34,14 +34,8 @@
     padding: 6px 12px;
     cursor: pointer;
     font-size: 14px;
-    transition: background 0.2s;
   }
-  .copy-btn:hover {
-    background: #c72a48;
-  }
-  .copy-btn:active {
-    transform: scale(0.96);
-  }
+  .copy-btn:hover { background: #c72a48; }
   .toast-msg {
     position: fixed;
     bottom: 20px;
@@ -54,7 +48,6 @@
     font-size: 14px;
     z-index: 2000;
     opacity: 0.9;
-    pointer-events: none;
   }
 </style>
 </head>
@@ -83,18 +76,24 @@
     </select>
     <p>سعر الكتاب: <span id="bookPrice"></span> $</p>
 
-    <!-- حقل إدخال الإيصال للتحويل البنكي -->
     <div id="bankProofDiv" style="display:none;">
       <label>رقم الإيصال / معرف التحويل:</label>
       <input type="text" id="bankProof" placeholder="أدخل رقم الإيصال">
     </div>
 
-    <!-- منطقة معلومات الدفع الرقمي (تظهر بعد إنشاء الطلب) -->
-    <div id="autoPaymentInfo" style="display:none; background:#f0f0f0; padding:10px; border-radius:8px; margin:10px 0;">
-    </div>
+    <div id="autoPaymentInfo" style="display:none; background:#f0f0f0; padding:10px; border-radius:8px; margin:10px 0;"></div>
 
     <button class="btn" id="confirmPayBtn" onclick="createOrder()">تأكيد الطلب</button>
     <button class="btn" style="background:#ccc; color:#333;" onclick="closeModal()">إلغاء</button>
+  </div>
+</div>
+
+<!-- زر الدعم -->
+<div class="support-float">
+  <div class="support-btn" id="supportBtn" onclick="toggleSupportMenu()">💬</div>
+  <div class="support-menu" id="supportMenu">
+    <a href="https://t.me/username" target="_blank" class="telegram"><span>📱</span> الدعم عبر تيليجرام</a>
+    <a href="https://m.me/pageusername" target="_blank" class="facebook"><span>📘</span> الدعم عبر فيسبوك</a>
   </div>
 </div>
 
@@ -104,94 +103,49 @@ let selectedBook = null;
 let currentOrderId = null;
 let currentMethod = null;
 
-// دالة نسخ النص إلى الحافظة مع إظهار رسالة منبثقة
 function copyToClipboard(text, elementId) {
   navigator.clipboard.writeText(text).then(() => {
     showToast('✅ تم نسخ العنوان');
-    // تغيير مؤقت لزر النسخ (اختياري)
-    const btn = document.querySelector(`#${elementId} .copy-btn`);
-    if (btn) {
-      const originalText = btn.innerText;
-      btn.innerText = 'تم النسخ!';
-      setTimeout(() => { btn.innerText = originalText; }, 1500);
-    }
-  }).catch(() => {
-    showToast('❌ فشل النسخ، حاول يدوياً');
-  });
+  }).catch(() => showToast('❌ فشل النسخ'));
 }
-
 function showToast(msg) {
-  let toast = document.querySelector('.toast-msg');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.className = 'toast-msg';
-    document.body.appendChild(toast);
-  }
+  let toast = document.querySelector('.toast-msg') || (() => { let d = document.createElement('div'); d.className = 'toast-msg'; document.body.appendChild(d); return d; })();
   toast.innerText = msg;
   toast.style.display = 'block';
-  setTimeout(() => { toast.style.display = 'none'; }, 2000);
+  setTimeout(() => toast.style.display = 'none', 2000);
 }
 
-// تحميل الكتب من ملف JSON
-fetch('/books.json')
-  .then(r => r.json())
-  .then(books => {
-    const grid = document.getElementById('booksGrid');
-    grid.innerHTML = books.map(b => `
-      <div class="card">
-        <img src="${b.cover}" style="width:100%; border-radius:8px;">
-        <h3>${b.title}</h3>
-        <p>السعر: ${b.price} $</p>
-        <button class="btn" onclick='openModal(${JSON.stringify(b).replace(/"/g, '&quot;')})'>شراء</button>
-      </div>
-    `).join('');
-  });
+fetch('/books.json').then(r=>r.json()).then(books => {
+  document.getElementById('booksGrid').innerHTML = books.map(b => `
+    <div class="card"><img src="${b.cover}"><h3>${b.title}</h3><p>السعر: ${b.price} $</p><button class="btn" onclick='openModal(${JSON.stringify(b).replace(/"/g, '&quot;')})'>شراء</button></div>
+  `).join('');
+});
 
 function openModal(book) {
   selectedBook = book;
   document.getElementById('bookPrice').innerText = book.price;
-  // إعادة تعيين الواجهة
   const method = document.getElementById('payMethod').value;
-  const autoDiv = document.getElementById('autoPaymentInfo');
-  const bankDiv = document.getElementById('bankProofDiv');
-  if (method === 'bank') {
-    bankDiv.style.display = 'block';
-    autoDiv.style.display = 'none';
-  } else {
-    bankDiv.style.display = 'none';
-    autoDiv.style.display = 'none';
-  }
-  // إعادة ضبط الزر
-  const confirmBtn = document.getElementById('confirmPayBtn');
-  confirmBtn.innerHTML = 'تأكيد الطلب';
-  confirmBtn.onclick = createOrder;
+  document.getElementById('bankProofDiv').style.display = method === 'bank' ? 'block' : 'none';
+  document.getElementById('autoPaymentInfo').style.display = 'none';
+  const btn = document.getElementById('confirmPayBtn');
+  btn.innerHTML = 'تأكيد الطلب';
+  btn.onclick = createOrder;
   currentOrderId = null;
   document.getElementById('payModal').classList.add('active');
 }
 
-// عند تغيير طريقة الدفع
-document.getElementById('payMethod').addEventListener('change', (e) => {
+document.getElementById('payMethod').addEventListener('change', e => {
   const method = e.target.value;
-  const bankDiv = document.getElementById('bankProofDiv');
-  const autoDiv = document.getElementById('autoPaymentInfo');
-  if (method === 'bank') {
-    bankDiv.style.display = 'block';
-    autoDiv.style.display = 'none';
-  } else {
-    bankDiv.style.display = 'none';
-    autoDiv.style.display = 'none';
-  }
-  const confirmBtn = document.getElementById('confirmPayBtn');
-  confirmBtn.innerHTML = 'تأكيد الطلب';
-  confirmBtn.onclick = createOrder;
+  document.getElementById('bankProofDiv').style.display = method === 'bank' ? 'block' : 'none';
+  document.getElementById('autoPaymentInfo').style.display = 'none';
+  const btn = document.getElementById('confirmPayBtn');
+  btn.innerHTML = 'تأكيد الطلب';
+  btn.onclick = createOrder;
   currentOrderId = null;
 });
 
-function closeModal() {
-  document.getElementById('payModal').classList.remove('active');
-}
+function closeModal() { document.getElementById('payModal').classList.remove('active'); }
 
-// إنشاء طلب جديد
 async function createOrder() {
   const method = document.getElementById('payMethod').value;
   const amount = selectedBook.price;
@@ -200,60 +154,44 @@ async function createOrder() {
     proof = document.getElementById('bankProof').value.trim();
     if (!proof) return toast('يرجى إدخال رقم الإيصال');
   }
-  const res = await api('/api/create-invoice', 'POST', {
-    bookId: selectedBook.id,
-    method,
-    amount,
-    proof
-  });
+  const res = await api('/api/create-invoice', 'POST', { bookId: selectedBook.id, method, amount, proof });
   if (res.success) {
     if (method === 'bank') {
-      toast('تم إنشاء الطلب. سيتم مراجعة الإيصال من قبل الأدمن');
+      toast('تم إنشاء الطلب. سيتم مراجعة الإيصال');
       window.location.href = '/orders.html';
     } else {
       currentOrderId = res.orderId;
       currentMethod = method;
-      let address = method === 'trx' ? 'TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L' : '0x1b90069d9503e1931d30a8884080cdf16bd0cded';
-      
-      // عرض معلومات الدفع داخل المودال مع زر نسخ ونص قابل للنسخ
+      const address = method === 'trx' ? 'TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L' : '0x1b90069d9503e1931d30a8884080cdf16bd0cded';
       const autoDiv = document.getElementById('autoPaymentInfo');
       autoDiv.innerHTML = `
         <p><strong>✅ رقم الطلب:</strong> ${currentOrderId}</p>
-        <p>أرسل <strong>${amount} ${method.toUpperCase()}</strong> إلى العنوان التالي:</p>
-        <div id="addressContainer" class="copy-container">
-          <span class="copy-address" onclick="copyToClipboard('${address}', 'addressContainer')">${address}</span>
-          <button class="copy-btn" onclick="copyToClipboard('${address}', 'addressContainer')">📋 نسخ</button>
+        <p>أرسل <strong>${amount} ${method.toUpperCase()}</strong> إلى العنوان:</p>
+        <div class="copy-container">
+          <span class="copy-address" onclick="copyToClipboard('${address}','addr')">${address}</span>
+          <button class="copy-btn" onclick="copyToClipboard('${address}','addr')">📋 نسخ</button>
         </div>
-        <p>📌 <strong>هام:</strong> اكتب رقم الطلب <strong>${currentOrderId}</strong> في المذكرة (Memo).</p>
-        <p>بعد إتمام الإرسال، اضغط زر "تحققت من الدفع".</p>
+        <p>📌 اكتب رقم الطلب <strong>${currentOrderId}</strong> في المذكرة (Memo).</p>
+        <p>بعد الإرسال اضغط "تحققت من الدفع".</p>
       `;
       autoDiv.style.display = 'block';
-      
-      // تغيير الزر إلى تحققت من الدفع
-      const confirmBtn = document.getElementById('confirmPayBtn');
-      confirmBtn.innerHTML = '🔍 تحققت من الدفع';
-      confirmBtn.onclick = () => verifyPayment(currentOrderId, currentMethod);
-      
-      // تنبيه اختياري برقم الطلب (يمكن إزالته إن أردت)
-      alert(`✅ تم إنشاء الطلب رقم: ${currentOrderId}\n\nيمكنك نسخ عنوان المحفظة بالضغط عليه أو على زر النسخ.\n\nبعد الإرسال، اضغط "تحققت من الدفع".`);
+      const btn = document.getElementById('confirmPayBtn');
+      btn.innerHTML = '🔍 تحققت من الدفع';
+      btn.onclick = () => verifyPayment(currentOrderId, currentMethod);
+      alert(`✅ تم إنشاء الطلب رقم: ${currentOrderId}\nيمكنك نسخ العنوان والدفع ثم الضغط على تحققت من الدفع.`);
     }
-  } else {
-    toast('خطأ: ' + res.error);
-  }
+  } else toast('خطأ: ' + res.error);
 }
 
-// التحقق من الدفع الرقمي
 async function verifyPayment(orderId, method) {
-  toast('جاري التحقق من الدفع... يرجى الانتظار');
+  toast('جاري التحقق...');
   const res = await api('/api/verify-payment', 'POST', { orderId, method });
   if (res.success && res.approved) {
-    toast('✅ تم تأكيد الدفع! يمكنك تحميل الكتاب من صفحة طلباتي');
+    toast('✅ تم تأكيد الدفع! يمكنك التحميل من صفحة طلباتي');
     closeModal();
     window.location.href = '/orders.html';
-  } else {
-    toast('❌ لم يتم العثور على الدفع. تأكد من إرسال المبلغ الصحيح وكتابة رقم الطلب في المذكرة (Memo).');
-  }
+  } else toast('❌ لم يتم العثور على الدفع. تأكد من المبلغ والمذكرة.');
 }
 </script>
 </body>
-</html>
+</html> 
