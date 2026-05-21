@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة التحكم</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <h2>لوحة التحكم</h2>
+  <button class="btn" onclick="logout()" style="background:#ccc; color:#333;">خروج</button>
+</header>
+
+<div class="container">
+  <h3>الطلبات المعلقة</h3>
+  <div id="ordersList"></div>
+</div>
+
+<script>
+const token = localStorage.getItem('admin_token');
+if (!token) location.href = '/admin-login.html';
+
+async function loadOrders() {
+  const res = await fetch('/api/admin/orders', {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  const data = await res.json();
+  
+  if (!data.success) {
+    localStorage.removeItem('admin_token');
+    location.href = '/admin-login.html';
+    return;
+  }
+
+  const list = document.getElementById('ordersList');
+  if (data.orders.length === 0) {
+    list.innerHTML = '<p>لا توجد طلبات معلقة</p>';
+    return;
+  }
+
+  list.innerHTML = data.orders.map(o => `
+    <div class="card">
+      <h4>${o.book_title}</h4>
+      <p>الطريقة: ${o.method} | المبلغ: ${o.amount} $</p>
+      <p>الحالة: <span class="status ${o.status}">${o.status}</span></p>
+      ${o.proof ? `<p>الإثبات: <a href="${o.proof}" target="_blank">عرض</a></p>` : ''}
+      <div style="margin-top:10px;">
+        <button class="btn" onclick="updateOrder(${o.id}, 'approve')">موافقة</button>
+        <button class="btn" onclick="updateOrder(${o.id}, 'reject')" style="background:#d63031;">رفض</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function updateOrder(orderId, action) {
+  const res = await fetch('/api/admin/orders', {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + token 
+    },
+    body: JSON.stringify({ orderId, action })
+  });
+  
+  const data = await res.json();
+  if (data.success) {
+    alert('تم التحديث');
+    loadOrders();
+  }
+}
+
+function logout() {
+  localStorage.removeItem('admin_token');
+  location.href = '/admin-login.html';
+}
+
+loadOrders();
+</script>
+</body>
+</html>
