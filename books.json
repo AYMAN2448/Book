@@ -6,11 +6,4 @@
     "cover": "https://i.imgur.com/0peOdC6.jpg",
     "file_url": "https://raw.githubusercontent.com/AYMAN2448/Book4ever_bot/main/sejonalmhd.pdf"
   },
-  {
-    "id": 2,
-    "title": "تعلم JavaScript",
-    "price": 7,
-    "cover": "https://via.placeholder.com/200x280",
-    "file_url": "https://example.com/book2.pdf"
-  }
 ]
