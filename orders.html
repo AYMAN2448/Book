@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta charset="UTF-8">
-<title>طلباتي</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>طلباتي - مكتبة الكتب</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 </head>
@@ -19,49 +19,54 @@
   <h2>طلباتي</h2>
   <div id="ordersList"></div>
 </div>
+
+<div class="modal" id="proofModal">
+  <div class="modal-content">
+    <h3>رفع إثبات الدفع</h3>
+    <input type="text" id="proofNumber" placeholder="رقم الإيصال">
+    <button class="btn" onclick="submitProof()">إرسال</button>
+    <button class="btn" onclick="closeProofModal()">إلغاء</button>
+  </div>
+</div>
+
+<!-- زر الدعم -->
+<div class="support-float">
+  <div class="support-btn" id="supportBtn" onclick="toggleSupportMenu()">💬</div>
+  <div class="support-menu" id="supportMenu">
+    <a href="https://t.me/username" target="_blank" class="telegram">📱 الدعم عبر تيليجرام</a>
+    <a href="https://m.me/pageusername" target="_blank" class="facebook">📘 الدعم عبر فيسبوك</a>
+  </div>
+</div>
+
 <script src="/script.js"></script>
 <script>
+let currentOrderId = null;
+loadOrders();
 async function loadOrders() {
   const res = await api('/api/orders');
   if (!res.success) return;
   const orders = res.orders;
   const list = document.getElementById('ordersList');
-  if (orders.length === 0) {
-    list.innerHTML = '<p>لا توجد طلبات بعد</p>';
-    return;
-  }
+  if (!orders.length) { list.innerHTML = '<p>لا توجد طلبات بعد</p>'; return; }
   list.innerHTML = orders.map(o => `
     <div class="card">
       <h3>${o.book_title}</h3>
       <p>الطريقة: ${o.method} | المبلغ: ${o.amount} $</p>
-      <p>الحالة: <span class="status ${o.status}">${statusText(o.status)}</span></p>
+      <p>الحالة: <span class="status ${o.status}">${o.status === 'pending' ? 'قيد الانتظار' : (o.status === 'pending_review' ? 'مراجعة' : (o.status === 'approved' ? 'تمت الموافقة' : 'مرفوض'))}</span></p>
       ${o.status === 'approved' && o.file_url ? `<a href="${o.file_url}" target="_blank" class="btn">تحميل الكتاب</a>` : ''}
-      ${o.status === 'pending' && o.method === 'bank' ? `<button class="btn" onclick="submitProofAgain(${o.id})">رفع إيصال الدفع</button>` : ''}
+      ${(o.status === 'pending' && o.method === 'bank') ? `<button class="btn" onclick="openProofModal(${o.id})">رفع إيصال الدفع</button>` : ''}
     </div>
   `).join('');
 }
-
-function statusText(status) {
-  if (status === 'pending') return 'قيد الانتظار';
-  if (status === 'pending_review') return 'جاري المراجعة';
-  if (status === 'approved') return 'تمت الموافقة';
-  if (status === 'rejected') return 'مرفوض';
-  return status;
+function openProofModal(id) { currentOrderId = id; document.getElementById('proofModal').classList.add('active'); }
+function closeProofModal() { document.getElementById('proofModal').classList.remove('active'); }
+async function submitProof() {
+  const proof = document.getElementById('proofNumber').value.trim();
+  if (!proof) return toast('أدخل رقم الإيصال');
+  const res = await api('/api/submit-proof', 'POST', { orderId: currentOrderId, proof });
+  if (res.success) { toast('تم رفع الإيصال'); closeProofModal(); loadOrders(); }
+  else toast('خطأ: ' + res.error);
 }
-
-async function submitProofAgain(orderId) {
-  const proof = prompt('أدخل رقم الإيصال / معرف التحويل:');
-  if (!proof) return;
-  const res = await api('/api/submit-proof', 'POST', { orderId, proof });
-  if (res.success) {
-    toast('تم رفع الإيصال، سيتم مراجعته');
-    loadOrders();
-  } else {
-    toast('خطأ: ' + res.error);
-  }
-}
-
-loadOrders();
 </script>
 </body>
-</html>
+</html> 
