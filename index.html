@@ -11,15 +11,13 @@
   .copy-address { flex: 1; font-family: monospace; font-size: 14px; cursor: pointer; user-select: all; }
   .copy-btn { background: #e94560; color: white; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
   .toast-msg { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 16px; border-radius: 30px; z-index: 2000; }
-  .books-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 25px; margin-top: 30px; }
   .info-block { background: #f9f9f9; border-right: 4px solid #e94560; padding: 12px; border-radius: 12px; margin: 10px 0; }
   .info-block h4 { margin-bottom: 8px; color: #e94560; }
-  .info-block p { margin: 5px 0; }
 </style>
 </head>
 <body>
 <header>
-  <h2>مكتبة الكتب الرقمية</h2>
+  <h2>مكتبة الكتب</h2>
   <nav>
     <a href="/">الرئيسية</a>
     <a href="/books.html">الكتب</a>
@@ -29,9 +27,9 @@
 </header>
 
 <div class="container">
-  <h1 style="text-align:center;">مرحباً بك في مكتبتنا</h1>
-  <p style="text-align:center;">اختر كتابك المفضل وادفع بسهولة (عملات رقمية أو تحويل بنكي/كاشي)</p>
-  <div class="books-grid" id="homeBooksGrid">جاري تحميل الكتب...</div>
+  <h1 style="text-align:center;">مرحباً بك في مكتبة الكتب الرقمية</h1>
+  <p style="text-align:center;">اختر كتابك المفضل وادفع بسهولة (عملات رقمية أو تحويل بنكي)</p>
+  <div class="grid" id="homeBooksGrid"></div>
 </div>
 
 <!-- مودال الدفع -->
@@ -43,9 +41,8 @@
       <option value="usdt">USDT (تحقق تلقائي)</option>
       <option value="bank">تحويل بنكي / كاشي (يدوي)</option>
     </select>
-    <p>سعر الكتاب: <span id="bookPrice"></span></p>
+    <p>المبلغ المطلوب: <span id="bookPrice"></span></p>
 
-    <!-- بيانات التحويل البنكي / كاشي -->
     <div id="bankAccountInfo" style="display:none;">
       <div class="info-block">
         <h4>🏦 تحويل بنكي:</h4>
@@ -72,19 +69,11 @@
   </div>
 </div>
 
-<!-- زر الدعم العائم -->
-<div class="support-float">
-  <div class="support-btn" id="supportBtn" onclick="toggleSupportMenu()">💬</div>
-  <div class="support-menu" id="supportMenu">
-    <a href="https://t.me/username" target="_blank">📱 تيليجرام</a>
-    <a href="https://m.me/pageusername" target="_blank">📘 فيسبوك</a>
-  </div>
-</div>
-
 <script src="/script.js"></script>
 <script>
-const LOCAL_CURRENCY_RATE = 530;    // 1 دولار = 530 جنيه سوداني (غيّر حسب عملتك)
-const LOCAL_CURRENCY_NAME = "جنيه سوداني";
+// ========== إعدادات سعر الصرف ==========
+const USD_TO_LOCAL = 4000;         // 1 دولار = 4000 عملة محلية
+const USD_TO_TRX = 6.7;            // 1 دولار = 6.7 TRX  (لأن 6.7 TRX = 1 USDT)
 
 let selectedBook = null;
 let currentOrderId = null;
@@ -105,7 +94,6 @@ function showToast(msg) {
   setTimeout(() => toast.style.display = 'none', 2000);
 }
 
-// تحميل الكتب من books.json
 fetch('/books.json')
   .then(r => r.json())
   .then(books => {
@@ -119,11 +107,7 @@ fetch('/books.json')
         <button class="btn" onclick='openModal(${JSON.stringify(book).replace(/"/g, '&quot;')})'>شراء</button>
       </div>
     `).join('');
-  })
-  .catch(err => {
-    console.error(err);
-    document.getElementById('homeBooksGrid').innerHTML = '<p>خطأ في تحميل الكتب</p>';
-  });
+  }).catch(e => console.error(e));
 
 function openModal(book) {
   selectedBook = book;
@@ -137,13 +121,21 @@ function openModal(book) {
 function updatePriceAndInfo(method) {
   const priceSpan = document.getElementById('bookPrice');
   if (method === 'bank') {
-    const localPrice = (selectedBook.price * LOCAL_CURRENCY_RATE).toFixed(2);
-    priceSpan.innerText = `${localPrice} ${LOCAL_CURRENCY_NAME}`;
+    const localAmount = (selectedBook.price * USD_TO_LOCAL).toFixed(2);
+    priceSpan.innerText = `${localAmount} عملة محلية`;
     document.getElementById('bankAccountInfo').style.display = 'block';
     document.getElementById('bankProofDiv').style.display = 'block';
     document.getElementById('autoPaymentInfo').style.display = 'none';
-  } else {
-    priceSpan.innerText = selectedBook.price;
+  } 
+  else if (method === 'usdt') {
+    priceSpan.innerText = `${selectedBook.price} USDT`;
+    document.getElementById('bankAccountInfo').style.display = 'none';
+    document.getElementById('bankProofDiv').style.display = 'none';
+    document.getElementById('autoPaymentInfo').style.display = 'none';
+  }
+  else if (method === 'trx') {
+    const trxAmount = (selectedBook.price * USD_TO_TRX).toFixed(2);
+    priceSpan.innerText = `${trxAmount} TRX`;
     document.getElementById('bankAccountInfo').style.display = 'none';
     document.getElementById('bankProofDiv').style.display = 'none';
     document.getElementById('autoPaymentInfo').style.display = 'none';
@@ -166,21 +158,32 @@ function closeModal() {
 
 async function createOrder() {
   const method = document.getElementById('payMethod').value;
-  const amount = selectedBook.price;
+  const usdPrice = selectedBook.price;
+  let displayAmount = '';
+  if (method === 'trx') {
+    displayAmount = (usdPrice * USD_TO_TRX).toFixed(2) + ' TRX';
+  } else if (method === 'usdt') {
+    displayAmount = usdPrice + ' USDT';
+  } else if (method === 'bank') {
+    displayAmount = (usdPrice * USD_TO_LOCAL).toFixed(2) + ' عملة محلية';
+  }
+
   let proof = null;
   if (method === 'bank') {
     proof = document.getElementById('bankProof').value.trim();
     if (!proof) return showToast('يرجى إدخال رقم الإيصال بعد التحويل');
   }
+
   const res = await api('/api/create-invoice', 'POST', {
     bookId: selectedBook.id,
     method,
-    amount,
+    amount: usdPrice,   // نخزن السعر بالدولار في قاعدة البيانات
     proof
   });
+
   if (res.success) {
     if (method === 'bank') {
-      alert(`✅ تم إنشاء الطلب رقم: ${res.orderId}\n\n📌 استخدم هذا الرقم عند التحويل البنكي أو كاشي.\nبعد التحويل، سجل رقم الإيصال في حقل الإثبات.\n\nسيتم مراجعة الطلب من قبل الأدمن.`);
+      alert(`✅ تم إنشاء الطلب رقم: ${res.orderId}\nالمبلغ المطلوب: ${displayAmount}\n\n📌 استخدم هذا الرقم عند التحويل.\nبعد التحويل، سجل رقم الإيصال في حقل الإثبات.`);
       window.location.href = '/orders.html';
     } else {
       currentOrderId = res.orderId;
@@ -189,7 +192,7 @@ async function createOrder() {
       const autoDiv = document.getElementById('autoPaymentInfo');
       autoDiv.innerHTML = `
         <p><strong>✅ رقم الطلب:</strong> ${currentOrderId}</p>
-        <p>أرسل <strong>${amount} ${method.toUpperCase()}</strong> إلى العنوان:</p>
+        <p>أرسل <strong>${displayAmount}</strong> إلى العنوان التالي:</p>
         <div class="copy-container">
           <span class="copy-address" onclick="copyToClipboard('${address}')">${address}</span>
           <button class="copy-btn" onclick="copyToClipboard('${address}')">📋 نسخ</button>
@@ -204,17 +207,21 @@ async function createOrder() {
       document.querySelector('#payModal .modal-content p:first-of-type').style.display = 'none';
       const btn = document.getElementById('confirmPayBtn');
       btn.innerHTML = '🔍 تحققت من الدفع';
-      btn.onclick = () => verifyPayment(currentOrderId, currentMethod);
-      alert(`✅ تم إنشاء الطلب رقم: ${currentOrderId}\nيمكنك نسخ العنوان والدفع ثم الضغط على تحققت من الدفع.`);
+      btn.onclick = () => verifyPayment(currentOrderId, currentMethod, usdPrice);
+      alert(`✅ تم إنشاء الطلب رقم: ${currentOrderId}\nالمبلغ المطلوب: ${displayAmount}\nبعد الإرسال اضغط "تحققت من الدفع".`);
     }
   } else {
     showToast('خطأ: ' + res.error);
   }
 }
 
-async function verifyPayment(orderId, method) {
+async function verifyPayment(orderId, method, usdPrice) {
   showToast('جاري التحقق...');
-  const res = await api('/api/verify-payment', 'POST', { orderId, method });
+  let expectedAmount = usdPrice;
+  if (method === 'trx') {
+    expectedAmount = usdPrice * USD_TO_TRX;  // الكمية المتوقعة من TRX
+  }
+  const res = await api('/api/verify-payment', 'POST', { orderId, method, expectedAmount });
   if (res.success && res.approved) {
     showToast('✅ تم تأكيد الدفع! يمكنك التحميل من طلباتي');
     closeModal();
