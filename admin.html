@@ -26,7 +26,7 @@ async function loadOrders() {
   const data = await res.json();
   if (!data.success) {
     localStorage.removeItem('admin_token');
-    location.href = '/admin-login.html';
+    location.href = 'api/admin-login.html';
     return;
   }
   const list = document.getElementById('ordersList');
@@ -65,7 +65,7 @@ async function updateOrder(orderId, action) {
 
 function logout() {
   localStorage.removeItem('admin_token');
-  location.href = '/admin-login.html';
+  location.href = 'api/admin-login.html';
 }
 loadOrders();
 </script>
