@@ -7,16 +7,107 @@
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 <style>
-  .copy-container { display: flex; align-items: center; gap: 8px; background: #fff; padding: 8px 12px; border-radius: 8px; direction: ltr; margin: 10px 0; border: 1px solid #ddd; }
-  .copy-address { flex: 1; font-family: monospace; font-size: 14px; cursor: pointer; user-select: all; }
-  .copy-btn { background: #e94560; color: white; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
-  .toast-msg { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 16px; border-radius: 30px; z-index: 2000; }
+  .copy-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    direction: ltr;
+    word-break: break-all;
+    margin: 10px 0;
+    border: 1px solid #ddd;
+  }
+  .copy-address {
+    flex: 1;
+    font-family: monospace;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: all;
+    overflow-x: auto;
+  }
+  .copy-btn {
+    background: #e94560;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+  }
+  .copy-btn:hover {
+    background: #c72a48;
+  }
+  .toast-msg {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 30px;
+    font-size: 14px;
+    z-index: 2000;
+    opacity: 0.9;
+    pointer-events: none;
+  }
+  .support-float {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+  }
+  .support-btn {
+    background: #25a36b;
+    color: white;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 28px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  .support-menu {
+    position: absolute;
+    bottom: 70px;
+    right: 0;
+    background: white;
+    border-radius: 12px;
+    display: none;
+    flex-direction: column;
+    min-width: 160px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  .support-menu a {
+    padding: 10px 16px;
+    text-decoration: none;
+    color: #333;
+    border-bottom: 1px solid #eee;
+  }
+  .support-menu a:last-child { border-bottom: none; }
 </style>
 </head>
 <body>
-<header><h2>مكتبة الكتب</h2><nav><a href="/">الرئيسية</a><a href="/orders.html">طلباتي</a></nav></header>
-<div class="container"><h2>الكتب المتاحة</h2><div class="grid" id="booksGrid"></div></div>
+<header>
+  <h2>مكتبة الكتب</h2>
+  <nav>
+    <a href="/">الرئيسية</a>
+    <a href="/orders.html">طلباتي</a>
+  </nav>
+</header>
 
+<div class="container">
+  <h2>الكتب المتاحة</h2>
+  <div class="grid" id="booksGrid"></div>
+</div>
+
+<!-- مودال الدفع -->
 <div class="modal" id="payModal">
   <div class="modal-content">
     <h3>اختر طريقة الدفع</h3>
@@ -26,50 +117,94 @@
       <option value="bank">تحويل بنكي (يدوي)</option>
     </select>
     <p>سعر الكتاب: <span id="bookPrice"></span></p>
-    <div id="bankProofDiv" style="display:none;"><label>رقم الإيصال / معرف التحويل:</label><input type="text" id="bankProof" placeholder="أدخل رقم الإيصال"></div>
+
+    <div id="bankProofDiv" style="display:none;">
+      <label>رقم الإيصال / معرف التحويل:</label>
+      <input type="text" id="bankProof" placeholder="أدخل رقم الإيصال">
+    </div>
+
     <div id="autoPaymentInfo" style="display:none; background:#f0f0f0; padding:10px; border-radius:8px; margin:10px 0;"></div>
+
     <button class="btn" id="confirmPayBtn" onclick="createOrder()">تأكيد الطلب</button>
     <button class="btn" style="background:#ccc; color:#333;" onclick="closeModal()">إلغاء</button>
   </div>
 </div>
 
 <!-- زر الدعم -->
-<div class="support-float"><div class="support-btn" onclick="toggleSupportMenu()">💬</div><div class="support-menu" id="supportMenu"><a href="https://t.me/username" target="_blank">📱 تيليجرام</a><a href="https://m.me/pageusername" target="_blank">📘 فيسبوك</a></div></div>
+<div class="support-float">
+  <div class="support-btn" onclick="toggleSupportMenu()">💬</div>
+  <div class="support-menu" id="supportMenu">
+    <a href="https://t.me/username" target="_blank">📱 تيليجرام</a>
+    <a href="https://m.me/pageusername" target="_blank">📘 فيسبوك</a>
+  </div>
+</div>
 
 <script src="/script.js"></script>
 <script>
-// ========== إعدادات العملة المحلية ==========
-const LOCAL_CURRENCY_RATE = 530;   // 1 دولار = 530 ريال يمني (غيّر حسب عملتك)
+// إعدادات العملة المحلية
+const LOCAL_CURRENCY_RATE = 530;
 const LOCAL_CURRENCY_NAME = "ريال يمني";
 
 let selectedBook = null;
 let currentOrderId = null;
 let currentMethod = null;
 
-function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(() => showToast('✅ تم نسخ العنوان')).catch(() => showToast('❌ فشل النسخ'));
-}
 function showToast(msg) {
-  let toast = document.querySelector('.toast-msg') || (() => { let d = document.createElement('div'); d.className = 'toast-msg'; document.body.appendChild(d); return d; })();
-  toast.innerText = msg; toast.style.display = 'block';
+  let toast = document.querySelector('.toast-msg');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.className = 'toast-msg';
+    document.body.appendChild(toast);
+  }
+  toast.innerText = msg;
+  toast.style.display = 'block';
   setTimeout(() => toast.style.display = 'none', 2000);
 }
 
-fetch('/books.json').then(r=>r.json()).then(books => {
-  document.getElementById('booksGrid').innerHTML = books.map(b => `
-    <div class="card"><img src="${b.cover}"><h3>${b.title}</h3><p>السعر: ${b.price} $</p><button class="btn" onclick='openModal(${JSON.stringify(b).replace(/"/g, '&quot;')})'>شراء</button></div>
-  `).join('');
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('✅ تم نسخ العنوان');
+  }).catch(() => {
+    showToast('❌ فشل النسخ، حاول يدوياً');
+  });
+}
+
+function toggleSupportMenu() {
+  const menu = document.getElementById('supportMenu');
+  if (menu.style.display === 'flex') menu.style.display = 'none';
+  else menu.style.display = 'flex';
+}
+document.addEventListener('click', function(e) {
+  const menu = document.getElementById('supportMenu');
+  const btn = document.querySelector('.support-btn');
+  if (menu && btn && !btn.contains(e.target) && !menu.contains(e.target)) {
+    menu.style.display = 'none';
+  }
 });
+
+// تحميل الكتب
+fetch('/books.json')
+  .then(r => r.json())
+  .then(books => {
+    const grid = document.getElementById('booksGrid');
+    grid.innerHTML = books.map(b => `
+      <div class="card">
+        <img src="${b.cover}" style="width:100%; border-radius:8px;">
+        <h3>${b.title}</h3>
+        <p>السعر: ${b.price} $</p>
+        <button class="btn" onclick='openModal(${JSON.stringify(b).replace(/"/g, '&quot;')})'>شراء</button>
+      </div>
+    `).join('');
+  });
 
 function openModal(book) {
   selectedBook = book;
   const method = document.getElementById('payMethod').value;
   const priceSpan = document.getElementById('bookPrice');
   if (method === 'bank') {
-    const localPrice = (book.price * LOCAL_CURRENCY_RATE).toFixed(2);
-    priceSpan.innerText = `${localPrice} ${LOCAL_CURRENCY_NAME}`;
+    priceSpan.innerText = (book.price * LOCAL_CURRENCY_RATE).toFixed(2) + ' ' + LOCAL_CURRENCY_NAME;
   } else {
-    priceSpan.innerText = book.price;
+    priceSpan.innerText = book.price + ' $';
   }
   document.getElementById('bankProofDiv').style.display = method === 'bank' ? 'block' : 'none';
   document.getElementById('autoPaymentInfo').style.display = 'none';
@@ -82,13 +217,12 @@ function openModal(book) {
 
 document.getElementById('payMethod').addEventListener('change', (e) => {
   const method = e.target.value;
-  const priceSpan = document.getElementById('bookPrice');
   if (selectedBook) {
+    const priceSpan = document.getElementById('bookPrice');
     if (method === 'bank') {
-      const localPrice = (selectedBook.price * LOCAL_CURRENCY_RATE).toFixed(2);
-      priceSpan.innerText = `${localPrice} ${LOCAL_CURRENCY_NAME}`;
+      priceSpan.innerText = (selectedBook.price * LOCAL_CURRENCY_RATE).toFixed(2) + ' ' + LOCAL_CURRENCY_NAME;
     } else {
-      priceSpan.innerText = selectedBook.price;
+      priceSpan.innerText = selectedBook.price + ' $';
     }
   }
   document.getElementById('bankProofDiv').style.display = method === 'bank' ? 'block' : 'none';
@@ -99,20 +233,22 @@ document.getElementById('payMethod').addEventListener('change', (e) => {
   currentOrderId = null;
 });
 
-function closeModal() { document.getElementById('payModal').classList.remove('active'); }
+function closeModal() {
+  document.getElementById('payModal').classList.remove('active');
+}
 
 async function createOrder() {
   const method = document.getElementById('payMethod').value;
-  const amount = selectedBook.price; // نرسل السعر بالدولار إلى قاعدة البيانات
+  const amount = selectedBook.price;
   let proof = null;
   if (method === 'bank') {
     proof = document.getElementById('bankProof').value.trim();
-    if (!proof) return toast('يرجى إدخال رقم الإيصال');
+    if (!proof) return showToast('يرجى إدخال رقم الإيصال');
   }
   const res = await api('/api/create-invoice', 'POST', { bookId: selectedBook.id, method, amount, proof });
   if (res.success) {
     if (method === 'bank') {
-      toast('تم إنشاء الطلب. سيتم مراجعة الإيصال');
+      showToast('تم إنشاء الطلب. سيتم مراجعة الإيصال');
       window.location.href = '/orders.html';
     } else {
       currentOrderId = res.orderId;
@@ -121,31 +257,35 @@ async function createOrder() {
       const autoDiv = document.getElementById('autoPaymentInfo');
       autoDiv.innerHTML = `
         <p><strong>✅ رقم الطلب:</strong> ${currentOrderId}</p>
-        <p>أرسل <strong>${amount} ${method.toUpperCase()}</strong> إلى العنوان:</p>
+        <p>أرسل <strong>${amount} ${method.toUpperCase()}</strong> إلى العنوان التالي:</p>
         <div class="copy-container">
           <span class="copy-address" onclick="copyToClipboard('${address}')">${address}</span>
           <button class="copy-btn" onclick="copyToClipboard('${address}')">📋 نسخ</button>
         </div>
-        <p>📌 اكتب رقم الطلب <strong>${currentOrderId}</strong> في المذكرة (Memo).</p>
-        <p>بعد الإرسال اضغط "تحققت من الدفع".</p>
+        <p>📌 <strong>هام:</strong> اكتب رقم الطلب <strong>${currentOrderId}</strong> في المذكرة (Memo).</p>
+        <p>بعد إتمام الإرسال، اضغط زر "تحققت من الدفع" أدناه.</p>
       `;
       autoDiv.style.display = 'block';
       const btn = document.getElementById('confirmPayBtn');
       btn.innerHTML = '🔍 تحققت من الدفع';
       btn.onclick = () => verifyPayment(currentOrderId, currentMethod);
-      alert(`✅ تم إنشاء الطلب رقم: ${currentOrderId}\nيمكنك نسخ العنوان والدفع ثم الضغط على تحققت من الدفع.`);
+      showToast(`✅ تم إنشاء الطلب رقم ${currentOrderId}. أنظر التفاصيل أعلاه.`);
     }
-  } else toast('خطأ: ' + res.error);
+  } else {
+    showToast('خطأ: ' + res.error);
+  }
 }
 
 async function verifyPayment(orderId, method) {
-  toast('جاري التحقق...');
+  showToast('جاري التحقق من الدفع...');
   const res = await api('/api/verify-payment', 'POST', { orderId, method });
   if (res.success && res.approved) {
-    toast('✅ تم تأكيد الدفع! يمكنك التحميل من صفحة طلباتي');
+    showToast('✅ تم تأكيد الدفع! يمكنك تحميل الكتاب من صفحة طلباتي');
     closeModal();
     window.location.href = '/orders.html';
-  } else toast('❌ لم يتم العثور على الدفع. تأكد من المبلغ والمذكرة.');
+  } else {
+    showToast('❌ لم يتم العثور على الدفع. تأكد من المبلغ وكتابة رقم الطلب في المذكرة.');
+  }
 }
 </script>
 </body>
