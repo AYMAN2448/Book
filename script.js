@@ -15,5 +15,5 @@ async function api(url, method = 'GET', body = null) {
 }
 
 function toast(msg, isError = false) {
-  alert(msg); // يمكنك تحسينها لاستخدام div منبثق
+  alert(msg);
 }
