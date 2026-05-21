@@ -4,4 +4,4 @@ compatibility_date = "2025-09-04"
 [[d1_databases]]
 binding = "DB"
 database_name = "bookstore_db"
-database_id = ""
+database_id = "6c180d95-dcab-4724-93ae-c13b9befb8cf"
