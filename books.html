@@ -62,22 +62,23 @@
   <div class="modal-content">
     <h3>اختر طريقة الدفع</h3>
     <select id="payMethod">
-      <option value="bank">تحويل بنكك / كاشي (يدوي)</option>
-      <option value="trx">TRX (تحقق تلقائي)</option>
+      <option value="bank">تحويل بنكك / كاشي (يدوي) - عملة محلية</option>
       <option value="usdt">USDT (تحقق تلقائي)</option>
+      <option value="trx">TRX (تحقق تلقائي)</option>
     </select>
     
-    <p id="priceDisplay"></p> <!-- سنستخدم هذا العنصر لعرض السعر مع الخصم -->
+    <div id="priceDisplay"></div>
 
     <div id="bankAccountInfo" style="display:none;">
       <div class="discount-badge" id="discountBadge" style="display:none;">
-        🎉 عرض خاص! خصم 50% على الدفع بالجنيه السوداني  🎉
+        🎉 عرض خاص! خصم 50% على الدفع بالعملة المحلية (ج.س) 🎉
       </div>
       
       <div class="info-block">
-        <h4>📱 تحويل كاشي:</h4>
+        <h4>📱 تحويل كاشي (Cash):</h4>
         <p><strong>رقم الحساب:</strong> 401951393</p>
-        <p><strong>اسم  الحساب:</strong> لبني احمد سعيد  </p>
+        <p><strong>اسم صاحب الحساب:</strong> لبني احمد سعيد</p>
+        <p><strong>ملاحظة:</strong> نفس رقم الحساب البنكي لكاشي</p>
       </div>
     </div>
 
@@ -96,9 +97,10 @@
 <script src="/script.js"></script>
 <script>
 // ========== إعدادات سعر الصرف والخصم ==========
-const USD_TO_LOCAL = 4000;      // 1 دولار = 4000 عملة محلية
-const USD_TO_TRX = 6.7;         // 1 دولار = 6.7 TRX
-const DISCOUNT_RATE = 0.5;      // خصم 50% للدفع بالعملة المحلية
+const USD_TO_LOCAL = 4000;           // 1 دولار = 4000 جنيه سوداني
+const LOCAL_CURRENCY_NAME = "ج.س";   // اختصار الجنيه السوداني
+const USD_TO_TRX = 6.7;              // 1 دولار = 6.7 TRX
+const DISCOUNT_RATE = 0.5;           // خصم 50% للدفع بالعملة المحلية
 
 let selectedBook = null;
 let currentOrderId = null;
@@ -123,6 +125,7 @@ fetch('/books.json')
   .then(r => r.json())
   .then(books => {
     const grid = document.getElementById('booksGrid');
+    if (!grid) return;
     grid.innerHTML = books.map(book => `
       <div class="card">
         <img src="${book.cover}" style="width:100%; border-radius:8px;">
@@ -152,10 +155,11 @@ function updatePriceAndInfo(method) {
   if (method === 'bank') {
     const originalLocal = selectedBook.price * USD_TO_LOCAL;
     const discountedLocal = originalLocal * (1 - DISCOUNT_RATE);
-    // عرض السعر الأصلي مشطوباً والسعر بعد الخصم
     priceDisplay.innerHTML = `
-      <span class="old-price">${originalLocal.toFixed(2)} عملة محلية</span>
-      <span class="new-price">${discountedLocal.toFixed(2)} عملة محلية (بعد الخصم 50%)</span>
+      <div style="margin:10px 0;">
+        <span class="old-price">${originalLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME}</span>
+        <span class="new-price">${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME} (بعد الخصم 50%)</span>
+      </div>
     `;
     discountBadge.style.display = 'block';
     bankAccountDiv.style.display = 'block';
@@ -163,7 +167,7 @@ function updatePriceAndInfo(method) {
     autoDiv.style.display = 'none';
   } 
   else if (method === 'usdt') {
-    priceDisplay.innerHTML = `<span class="new-price">${selectedBook.price} USDT (بدون خصم)</span>`;
+    priceDisplay.innerHTML = `<div class="new-price">${selectedBook.price} USDT (بدون خصم)</div>`;
     discountBadge.style.display = 'none';
     bankAccountDiv.style.display = 'none';
     bankProofDiv.style.display = 'none';
@@ -171,7 +175,7 @@ function updatePriceAndInfo(method) {
   }
   else if (method === 'trx') {
     const trxAmount = selectedBook.price * USD_TO_TRX;
-    priceDisplay.innerHTML = `<span class="new-price">${trxAmount.toFixed(2)} TRX (بدون خصم)</span>`;
+    priceDisplay.innerHTML = `<div class="new-price">${trxAmount.toFixed(2)} TRX (بدون خصم)</div>`;
     discountBadge.style.display = 'none';
     bankAccountDiv.style.display = 'none';
     bankProofDiv.style.display = 'none';
@@ -197,15 +201,12 @@ function closeModal() {
 async function createOrder() {
   const method = document.getElementById('payMethod').value;
   const usdPrice = selectedBook.price;
-  let finalAmountUSD = usdPrice;
   let displayAmount = '';
 
   if (method === 'bank') {
-    // تطبيق الخصم على السعر بالعملة المحلية
-    const localPrice = usdPrice * USD_TO_LOCAL;
-    const discountedLocal = localPrice * (1 - DISCOUNT_RATE);
-    displayAmount = `${discountedLocal.toFixed(2)} عملة محلية (بعد الخصم 50%)`;
-    finalAmountUSD = usdPrice; // نخزن السعر الأصلي بالدولار كمرجع (أو يمكن تخزين السعر بعد الخصم، لكن الأفضل الاحتفاظ بالدولار)
+    const originalLocal = usdPrice * USD_TO_LOCAL;
+    const discountedLocal = originalLocal * (1 - DISCOUNT_RATE);
+    displayAmount = `${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME} (بعد الخصم 50%)`;
   } else if (method === 'trx') {
     const trxAmount = usdPrice * USD_TO_TRX;
     displayAmount = `${trxAmount.toFixed(2)} TRX`;
@@ -222,7 +223,7 @@ async function createOrder() {
   const res = await api('/api/create-invoice', 'POST', {
     bookId: selectedBook.id,
     method,
-    amount: usdPrice,     // نخزن السعر بالدولار (بدون خصم) لتوحيد المرجع
+    amount: usdPrice,   // نخزن السعر بالدولار (بدون خصم) لتوحيد المرجع
     proof
   });
 
