@@ -23,10 +23,10 @@
     <select id="payMethod">
       <option value="trx">TRX (تحقق تلقائي)</option>
       <option value="usdt">USDT (تحقق تلقائي)</option>
-      <option value="bank">تحويل بنكي (يدوي)</option>
+      <option value="bank">تحويل بنكك او كاشي (يدوي)</option>
     </select>
     <p>سعر الكتاب: <span id="bookPrice"></span></p>
-    <div id="bankProofDiv" style="display:none;"><label>رقم الإيصال / معرف التحويل:</label><input type="text" id="bankProof" placeholder="أدخل رقم الإيصال"></div>
+    <div id="bankProofDiv" style="display:none;"><label>رقم الإيصال / معرف العملية :</label><input type="text" id="bankProof" placeholder="أدخل رقم الإيصال"></div>
     <div id="autoPaymentInfo" style="display:none; background:#f0f0f0; padding:10px; border-radius:8px; margin:10px 0;"></div>
     <button class="btn" id="confirmPayBtn" onclick="createOrder()">تأكيد الطلب</button>
     <button class="btn" style="background:#ccc; color:#333;" onclick="closeModal()">إلغاء</button>
@@ -39,8 +39,8 @@
 <script src="/script.js"></script>
 <script>
 // ========== إعدادات العملة المحلية ==========
-const LOCAL_CURRENCY_RATE = 530;
-const LOCAL_CURRENCY_NAME = "ريال يمني";
+const LOCAL_CURRENCY_RATE = 4000;
+const LOCAL_CURRENCY_NAME = "جنيه سوداني ";
 
 let selectedBook = null;
 let currentOrderId = null;
@@ -121,7 +121,7 @@ async function createOrder() {
   const res = await api('/api/create-invoice', 'POST', { bookId: selectedBook.id, method, amount, proof });
   if (res.success) {
     if (method === 'bank') {
-      toast('تم إنشاء الطلب. سيتم مراجعة الإيصال');
+      toast('تم إنشاء الطلب. راجع نافذة طلباتي سيتم مراجعة الإيصال');
       window.location.href = '/orders.html';
     } else {
       currentOrderId = res.orderId;
@@ -141,7 +141,7 @@ function showPaymentInfo(orderId, method, amount, address) {
       <span class="copy-address" onclick="copyToClipboard('${address}')">${address}</span>
       <button class="copy-btn" onclick="copyToClipboard('${address}')">📋 نسخ</button>
     </div>
-    <p>📌 اكتب رقم الطلب <strong>${orderId}</strong> في المذكرة (Memo).</p>
+    <p>📌 اكتب رقم الطلب <strong>${orderId}</strong> في الاشعار (Memo).</p>
     <p>بعد الإرسال اضغط "تحققت من الدفع".</p>
   `;
   autoDiv.style.display = 'block';
