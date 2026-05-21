@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>الكتب</title>
+<title>الكتب - مكتبة الكتب</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 </head>
@@ -14,12 +14,12 @@
     <a href="/orders.html">طلباتي</a>
   </nav>
 </header>
+
 <div class="container">
   <h2>الكتب المتاحة</h2>
   <div class="grid" id="booksGrid"></div>
 </div>
 
-<!-- مودال الدفع -->
 <div class="modal" id="payModal">
   <div class="modal-content">
     <h3>اختر طريقة الدفع</h3>
@@ -80,7 +80,7 @@ function togglePaymentInfo(method) {
   } else {
     autoDiv.style.display = 'none';
     bankDiv.style.display = 'block';
-    document.getElementById('confirmPayBtn').innerText = 'تأكيد الطلب ورفع الإيصال';
+    document.getElementById('confirmPayBtn').innerText = 'تأكيد الطلب وإرسال الإيصال';
   }
 }
 
@@ -95,7 +95,7 @@ async function createOrder() {
   const amount = selectedBook.price;
   let proof = null;
   if (method === 'bank') {
-    proof = document.getElementById('bankProof').value;
+    proof = document.getElementById('bankProof').value.trim();
     if (!proof) return toast('يرجى إدخال رقم الإيصال');
   }
   const res = await api('/api/create-invoice', 'POST', {
@@ -105,24 +105,13 @@ async function createOrder() {
     proof
   });
   if (res.success) {
-    if (method === 'trx' || method === 'usdt') {
-      // بعد إنشاء الطلب، نبدأ عملية التحقق التلقائي
-      toast('تم إنشاء الطلب. جاري التحقق من الدفع...');
-      const verifyRes = await api('/api/verify-payment', 'POST', { orderId: res.orderId, method });
-      if (verifyRes.success && verifyRes.approved) {
-        toast('تم تأكيد الدفع! يمكنك تحميل الكتاب من صفحة طلباتي');
-      } else {
-        toast('لم يتم العثور على الدفع بعد، تأكد من إرسال المبلغ ثم اضغط "تحققت من الدفع" مرة أخرى لاحقاً');
-      }
-    } else {
-      toast('تم إنشاء الطلب. سيتم مراجعة الإيصال من قبل الأدمن');
-    }
+    toast(method === 'bank' ? 'تم إنشاء الطلب. سيتم مراجعة الإيصال من قبل الأدمن' : 'تم إنشاء الطلب، سيتم التحقق تلقائياً');
     closeModal();
     window.location.href = '/orders.html';
   } else {
-    toast('خطأ: ' + res.error);
+    toast('حدث خطأ: ' + res.error);
   }
 }
 </script>
 </body>
-</html>
+</html> 
