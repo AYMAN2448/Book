@@ -1,82 +1,93 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>لوحة التحكم</title>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css">
+<title>لوحة الأدمن</title>
+<style>
+body { font-family: Arial, sans-serif; background: #1a1a1a; color: #fff; padding: 20px; }
+.container { max-width: 600px; margin: auto; background: #2a2a2a; padding: 20px; border-radius: 10px; }
+h2 { text-align: center; color: #4CAF50; }
+input, textarea { width: 100%; padding: 10px; margin: 10px 0; border: none; border-radius: 5px; background: #3a3a3a; color: #fff; }
+button { width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+button:hover { background: #45a049; }
+.msg { margin-top: 15px; text-align: center; }
+label { display: block; margin-top: 10px; color: #ccc; }
+</style>
 </head>
 <body>
-<header>
-  <h2>لوحة التحكم</h2>
-  <button class="btn" onclick="logout()" style="background:#ccc; color:#333;">خروج</button>
-</header>
-
 <div class="container">
-  <h3>الطلبات المعلقة</h3>
-  <div id="ordersList"></div>
+  <h2>رفع كتاب جديد</h2>
+  
+  <label>اسم الكتاب *</label>
+  <input type="text" id="title" placeholder="مثال: أساسيات البرمجة" required>
+  
+  <label>الكاتب *</label>
+  <input type="text" id="author" placeholder="مثال: أحمد محمد" required>
+  
+  <label>الوصف *</label>
+  <textarea id="description" rows="3" placeholder="وصف مختصر عن الكتاب" required></textarea>
+  
+  <label>السعر بالدولار *</label>
+  <input type="number" id="price" placeholder="مثال: 5.99" step="0.01" required>
+  
+  <label>رابط ملف الكتاب PDF *</label>
+  <input type="url" id="file_url" placeholder="https://example.com/book.pdf" required>
+  
+  <label>رابط صورة الغلاف</label>
+  <input type="url" id="cover_url" placeholder="https://example.com/cover.jpg">
+  
+  <label>القسم/التصنيف</label>
+  <input type="text" id="category" placeholder="مثال: برمجة، روايات، علوم">
+  
+  <button onclick="uploadBook()">رفع الكتاب</button>
+  <div class="msg" id="msg"></div>
 </div>
 
 <script>
-const token = localStorage.getItem('admin_token');
-if (!token) location.href = '/admin-login.html';
-
-async function loadOrders() {
-  const res = await fetch('/api/admin/orders', {
-    headers: { 'Authorization': 'Bearer ' + token }
-  });
-  const data = await res.json();
+async function uploadBook() {
+  const msgDiv = document.getElementById('msg');
+  msgDiv.innerHTML = 'جاري الرفع...';
   
-  if (!data.success) {
-    localStorage.removeItem('admin_token');
-    location.href = '/admin-login.html';
+  const book = {
+    title: document.getElementById('title').value.trim(),
+    author: document.getElementById('author').value.trim(),
+    description: document.getElementById('description').value.trim(),
+    price: parseFloat(document.getElementById('price').value),
+    file_url: document.getElementById('file_url').value.trim(),
+    cover_url: document.getElementById('cover_url').value.trim(),
+    category: document.getElementById('category').value.trim()
+  };
+
+  // تحقق من الحقول المطلوبة
+  if (!book.title || !book.author || !book.description || !book.price || !book.file_url) {
+    msgDiv.innerHTML = '❌ املأ جميع الحقول المطلوبة';
+    msgDiv.style.color = 'red';
     return;
   }
 
-  const list = document.getElementById('ordersList');
-  if (data.orders.length === 0) {
-    list.innerHTML = '<p>لا توجد طلبات معلقة</p>';
-    return;
-  }
+  try {
+    const res = await fetch('/api/add-book', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(book)
+    });
 
-  list.innerHTML = data.orders.map(o => `
-    <div class="card">
-      <h4>${o.book_title}</h4>
-      <p>الطريقة: ${o.method} | المبلغ: ${o.amount} $</p>
-      <p>الحالة: <span class="status ${o.status}">${o.status}</span></p>
-      ${o.proof ? `<p>الإثبات: <a href="${o.proof}" target="_blank">عرض</a></p>` : ''}
-      <div style="margin-top:10px;">
-        <button class="btn" onclick="updateOrder(${o.id}, 'approve')">موافقة</button>
-        <button class="btn" onclick="updateOrder(${o.id}, 'reject')" style="background:#d63031;">رفض</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-async function updateOrder(orderId, action) {
-  const res = await fetch('/api/admin/orders', {
-    method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + token 
-    },
-    body: JSON.stringify({ orderId, action })
-  });
-  
-  const data = await res.json();
-  if (data.success) {
-    alert('تم التحديث');
-    loadOrders();
+    const data = await res.json();
+    
+    if (data.success) {
+      msgDiv.innerHTML = '✅ تم رفع الكتاب بنجاح';
+      msgDiv.style.color = 'green';
+      document.querySelectorAll('input, textarea').forEach(el => el.value = '');
+    } else {
+      msgDiv.innerHTML = '❌ فشل: ' + data.error;
+      msgDiv.style.color = 'red';
+    }
+  } catch (e) {
+    msgDiv.innerHTML = '❌ خطأ في الاتصال: ' + e.message;
+    msgDiv.style.color = 'red';
   }
 }
-
-function logout() {
-  localStorage.removeItem('admin_token');
-  location.href = '/admin-login.html';
-}
-
-loadOrders();
 </script>
 </body>
-</html>
+</html> 
