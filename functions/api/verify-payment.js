@@ -4,7 +4,6 @@ export async function onRequestPost({ request, env }) {
     const sessionId = request.headers.get('X-Session-Id');
     if (!sessionId) return Response.json({ success: false, error: 'لا توجد جلسة' });
 
-    // جلب الطلب من قاعدة البيانات
     const order = await env.DB.prepare(
       `SELECT * FROM orders WHERE id = ? AND session_id = ?`
     ).bind(orderId, sessionId).first();
@@ -15,24 +14,19 @@ export async function onRequestPost({ request, env }) {
     let txHash = null;
     const expectedAmount = order.amount;
 
-    // عناوين المحافظ (يجب أن تطابق الظاهرة للمستخدم)
     const trxAddress = 'TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L';
     const usdtAddress = '0x1b90069d9503e1931d30a8884080cdf16bd0cded';
     const usdtContract = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
-
     const apiKey = env.TRONGRID_API_KEY || '';
 
     if (method === 'trx') {
       const url = `https://api.trongrid.io/v1/accounts/${trxAddress}/transactions?limit=20&sort=-timestamp`;
-      const response = await fetch(url, {
-        headers: apiKey ? { 'TRON-PRO-API-KEY': apiKey } : {}
-      });
+      const response = await fetch(url, { headers: apiKey ? { 'TRON-PRO-API-KEY': apiKey } : {} });
       const data = await response.json();
       for (const tx of data.data || []) {
         const contract = tx.raw_data?.contract[0];
         if (contract?.type === 'TransferContract') {
           const toAddress = contract.parameter?.value?.to_address;
-          // تحويل عنوان الـ hex إلى base58 إذا لزم (تبسيط: نقارن النص)
           if (toAddress && (toAddress === trxAddress || toAddress === trxAddress.toLowerCase())) {
             const amountTRX = contract.parameter.value.amount / 1e6;
             const memo = tx.raw_data?.data ? Buffer.from(tx.raw_data.data, 'hex').toString() : '';
@@ -44,12 +38,9 @@ export async function onRequestPost({ request, env }) {
           }
         }
       }
-    } 
-    else if (method === 'usdt') {
+    } else if (method === 'usdt') {
       const url = `https://api.trongrid.io/v1/accounts/${usdtAddress}/transactions/trc20?limit=20&contract_address=${usdtContract}`;
-      const response = await fetch(url, {
-        headers: apiKey ? { 'TRON-PRO-API-KEY': apiKey } : {}
-      });
+      const response = await fetch(url, { headers: apiKey ? { 'TRON-PRO-API-KEY': apiKey } : {} });
       const data = await response.json();
       for (const tx of data.data || []) {
         if (tx.to && tx.to.toLowerCase() === usdtAddress.toLowerCase() && tx.token_info?.address?.toLowerCase() === usdtContract.toLowerCase()) {
@@ -70,9 +61,12 @@ export async function onRequestPost({ request, env }) {
       const book = books.find(b => b.id == order.book_id);
       if (!book) return Response.json({ success: false, error: 'الكتاب غير موجود' });
 
+      const downloadToken = crypto.randomUUID();
+      const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 ساعة صلاحية
+
       await env.DB.prepare(
-        `UPDATE orders SET status = 'approved', file_url = ?, tx_hash = ?, updated_at = ? WHERE id = ?`
-      ).bind(book.file_url, txHash, Date.now(), orderId).run();
+        `UPDATE orders SET status = 'approved', download_token = ?, token_expires_at = ?, tx_hash = ?, updated_at = ? WHERE id = ?`
+      ).bind(downloadToken, expiresAt, txHash, Date.now(), orderId).run();
 
       return Response.json({ success: true, approved: true });
     } else {
