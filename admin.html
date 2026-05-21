@@ -20,17 +20,17 @@ const token = localStorage.getItem('admin_token');
 if (!token) location.href = '/admin-login.html';
 
 async function loadOrders() {
-  const res = await fetch('/api/admin-orders', {
+  const res = await fetch('/api/admin/orders', {
     headers: { 'Authorization': 'Bearer ' + token }
   });
   const data = await res.json();
   if (!data.success) {
     localStorage.removeItem('admin_token');
-    location.href = 'api/admin-login.html';
+    location.href = '/admin-login.html';
     return;
   }
   const list = document.getElementById('ordersList');
-  if (data.orders.length === 0) {
+  if (!data.orders.length) {
     list.innerHTML = '<p>لا توجد طلبات معلقة</p>';
     return;
   }
@@ -38,7 +38,7 @@ async function loadOrders() {
     <div class="card">
       <h4>${o.book_title}</h4>
       <p>الطريقة: ${o.method} | المبلغ: ${o.amount} $</p>
-      <p>الحالة: ${o.status === 'pending_review' ? 'مراجعة' : 'قيد الانتظار'}</p>
+      <p>الحالة: ${o.status === 'pending_review' ? 'مراجعة (تم رفع الإيصال)' : 'قيد الانتظار'}</p>
       ${o.proof ? `<p><strong>رقم الإيصال:</strong> ${o.proof}</p>` : ''}
       <div style="margin-top:10px;">
         <button class="btn" onclick="updateOrder(${o.id}, 'approve')">موافقة</button>
@@ -49,7 +49,7 @@ async function loadOrders() {
 }
 
 async function updateOrder(orderId, action) {
-  const res = await fetch('/api/admin-orders', {
+  const res = await fetch('/api/admin/orders', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({ orderId, action })
@@ -65,9 +65,9 @@ async function updateOrder(orderId, action) {
 
 function logout() {
   localStorage.removeItem('admin_token');
-  location.href = 'api/admin-login.html';
+  location.href = '/admin-login.html';
 }
 loadOrders();
 </script>
 </body>
-</html>
+</html> 
