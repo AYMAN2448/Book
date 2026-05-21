@@ -61,7 +61,6 @@ async function loadOrders() {
 }
 
 function resumePayment(orderId, method, amount) {
-  // تخزين بيانات الطلب في sessionStorage لتتم قراءتها في books.html
   sessionStorage.setItem('resumeOrder', JSON.stringify({ orderId, method, amount }));
   window.location.href = '/books.html?resume=true';
 }
@@ -77,4 +76,4 @@ async function submitProof() {
 }
 </script>
 </body>
-</html>
+</html> 
