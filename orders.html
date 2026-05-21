@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>طلباتي</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <h2>مكتبة الكتب</h2>
+  <nav>
+    <a href="/">الرئيسية</a>
+    <a href="/books.html">الكتب</a>
+  </nav>
+</header>
+
+<div class="container">
+  <h2>طلباتي</h2>
+  <div id="ordersList"></div>
+</div>
+
+<!-- مودال رفع الإثبات -->
+<div class="modal" id="proofModal">
+  <div class="modal-content">
+    <h3>رفع إثبات الدفع</h3>
+    <input type="url" id="proofUrl" placeholder="رابط صورة الإثبات">
+    <button class="btn" onclick="submitProof()">إرسال</button>
+    <button class="btn" style="background:#ccc; color:#333;" onclick="closeProofModal()">إلغاء</button>
+  </div>
+</div>
+
+<script src="/script.js"></script>
+<script>
+let currentOrderId = null;
+
+loadOrders();
+
+async function loadOrders() {
+  const res = await api('/api/orders');
+  if (!res.success) return;
+  
+  const list = document.getElementById('ordersList');
+  if (res.orders.length === 0) {
+    list.innerHTML = '<p>لا توجد طلبات بعد</p>';
+    return;
+  }
+  
+  list.innerHTML = res.orders.map(o => `
+    <div class="card">
+      <h3>${o.book_title}</h3>
+      <p>الطريقة: ${o.method} | المبلغ: ${o.amount} $</p>
+      <p>الحالة: <span class="status ${o.status}">${o.status}</span></p>
+      ${o.status === 'approved' && o.file_url ? 
+        `<a href="${o.file_url}" target="_blank" class="btn">تحميل الكتاب</a>` : ''}
+      ${o.status === 'pending' ? 
+        `<button class="btn" onclick="openProofModal(${o.id})">رفع إثبات الدفع</button>` : ''}
+    </div>
+  `).join('');
+}
+
+function openProofModal(id) {
+  currentOrderId = id;
+  document.getElementById('proofModal').classList.add('active');
+}
+
+function closeProofModal() {
+  document.getElementById('proofModal').classList.remove('active');
+}
+
+async function submitProof() {
+  const proof = document.getElementById('proofUrl').value;
+  if (!proof) return toast('ادخل رابط الإثبات');
+  
+  const res = await api('/api/submit-proof', 'POST', { orderId: currentOrderId, proof });
+  if (res.success) {
+    toast('تم رفع الإثبات. بانتظار المراجعة');
+    closeProofModal();
+    loadOrders();
+  }
+}
+</script>
+</body>
+</html>

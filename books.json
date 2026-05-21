@@ -1,0 +1,16 @@
+[
+  {
+    "id": "book1",
+    "title": "أساسيات البرمجة",
+    "price": 5,
+    "cover": "https://via.placeholder.com/200x280",
+    "file_url": "https://example.com/book1.pdf"
+  },
+  {
+    "id": "book2",
+    "title": "تعلم JavaScript",
+    "price": 7,
+    "cover": "https://via.placeholder.com/200x280",
+    "file_url": "https://example.com/book2.pdf"
+  }
+]
