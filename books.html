@@ -13,7 +13,6 @@
   .toast-msg { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 16px; border-radius: 30px; z-index: 2000; }
   .info-block { background: #f9f9f9; border-right: 4px solid #e94560; padding: 12px; border-radius: 12px; margin: 10px 0; }
   .info-block h4 { margin-bottom: 8px; color: #e94560; }
-  .info-block p { margin: 5px 0; }
 </style>
 </head>
 <body>
@@ -30,7 +29,6 @@
   <div class="grid" id="booksGrid"></div>
 </div>
 
-<!-- مودال الدفع -->
 <div class="modal" id="payModal">
   <div class="modal-content">
     <h3>اختر طريقة الدفع</h3>
@@ -69,10 +67,12 @@
 
 <script src="/script.js"></script>
 <script>
-// إعدادات العملات
-const TRX_TO_USD = 0.25;        // 1 TRX = 0.25 دولار → 1 دولار = 4 TRX
-const LOCAL_CURRENCY_RATE = 530;    // 1 دولار = 530 جنيه سوداني (غيّر حسب عملتك)
-const LOCAL_CURRENCY_NAME = "جنيه سوداني";
+// ========== إعدادات سعر الصرف وفقاً للمعطى: 6.7 TRX = 1 USDT = 4000 عملة محلية = 1 دولار ==========
+const USD_TO_LOCAL = 4000;        // 1 دولار = 4000 عملة محلية
+const TRX_PER_USDT = 6.7;         // 1 USDT = 6.7 TRX
+// سعر TRX بالدولار = 1 / TRX_PER_USDT = ~0.14925
+// لحساب كمية TRX المطلوبة لكتاب سعره price دولار: trxAmount = price * TRX_PER_USDT
+// لأن كل دولار يطلب 6.7 TRX.
 
 let selectedBook = null;
 let currentOrderId = null;
@@ -118,22 +118,23 @@ function openModal(book) {
 
 function updatePriceAndInfo(method) {
   const priceSpan = document.getElementById('bookPrice');
+  const usdPrice = selectedBook.price;
   if (method === 'bank') {
-    const localPrice = (selectedBook.price * LOCAL_CURRENCY_RATE).toFixed(2);
-    priceSpan.innerText = `${localPrice} ${LOCAL_CURRENCY_NAME}`;
+    const localAmount = (usdPrice * USD_TO_LOCAL).toFixed(2);
+    priceSpan.innerText = `${localAmount} عملة محلية`;
     document.getElementById('bankAccountInfo').style.display = 'block';
     document.getElementById('bankProofDiv').style.display = 'block';
     document.getElementById('autoPaymentInfo').style.display = 'none';
   } 
-  else if (method === 'trx') {
-    const trxAmount = (selectedBook.price / TRX_TO_USD).toFixed(2);
-    priceSpan.innerText = `${trxAmount} TRX`;
+  else if (method === 'usdt') {
+    priceSpan.innerText = `${usdPrice} USDT`;
     document.getElementById('bankAccountInfo').style.display = 'none';
     document.getElementById('bankProofDiv').style.display = 'none';
     document.getElementById('autoPaymentInfo').style.display = 'none';
   }
-  else if (method === 'usdt') {
-    priceSpan.innerText = `${selectedBook.price} USDT`;
+  else if (method === 'trx') {
+    const trxAmount = (usdPrice * TRX_PER_USDT).toFixed(2);
+    priceSpan.innerText = `${trxAmount} TRX`;
     document.getElementById('bankAccountInfo').style.display = 'none';
     document.getElementById('bankProofDiv').style.display = 'none';
     document.getElementById('autoPaymentInfo').style.display = 'none';
@@ -156,14 +157,17 @@ function closeModal() {
 
 async function createOrder() {
   const method = document.getElementById('payMethod').value;
-  let amountInUSD = selectedBook.price;
-  let amountToSend = amountInUSD; // سيكون بالدولار أساساً، لكن سنرسل المبلغ الحقيقي للعملة الرقمية في الطلب
-  let actualAmount = amountInUSD; // القيمة التي سيتم تخزينها في قاعدة البيانات هي الدولار
+  const usdPrice = selectedBook.price;
 
+  let displayAmount = '';
   if (method === 'trx') {
-    actualAmount = (amountInUSD / TRX_TO_USD).toFixed(2); // كمية TRX المطلوبة
+    const trxAmount = (usdPrice * TRX_PER_USDT).toFixed(2);
+    displayAmount = `${trxAmount} TRX`;
   } else if (method === 'usdt') {
-    actualAmount = amountInUSD; // USDT تساوي الدولار
+    displayAmount = `${usdPrice} USDT`;
+  } else if (method === 'bank') {
+    const localAmount = (usdPrice * USD_TO_LOCAL).toFixed(2);
+    displayAmount = `${localAmount} عملة محلية`;
   }
 
   let proof = null;
@@ -175,20 +179,18 @@ async function createOrder() {
   const res = await api('/api/create-invoice', 'POST', {
     bookId: selectedBook.id,
     method,
-    amount: amountInUSD, // نخزن السعر بالدولار في قاعدة البيانات
-    actualAmount: actualAmount, // نرسل الكمية الفعلية للعملة الرقمية (سيتم استخدامها في العرض فقط)
+    amount: usdPrice,   // نخزن السعر بالدولار في قاعدة البيانات
     proof
   });
 
   if (res.success) {
     if (method === 'bank') {
-      alert(`✅ تم إنشاء الطلب رقم: ${res.orderId}\n\n📌 استخدم هذا الرقم عند التحويل البنكي أو كاشي.\nبعد التحويل، سجل رقم الإيصال في حقل الإثبات.\n\nسيتم مراجعة الطلب من قبل الأدمن.`);
+      alert(`✅ تم إنشاء الطلب رقم: ${res.orderId}\nالمبلغ المطلوب: ${displayAmount}\n\n📌 استخدم هذا الرقم عند التحويل.\nبعد التحويل، سجل رقم الإيصال في حقل الإثبات.`);
       window.location.href = '/orders.html';
     } else {
       currentOrderId = res.orderId;
       currentMethod = method;
       const address = method === 'trx' ? 'TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L' : '0x1b90069d9503e1931d30a8884080cdf16bd0cded';
-      const displayAmount = method === 'trx' ? `${actualAmount} TRX` : `${actualAmount} USDT`;
       const autoDiv = document.getElementById('autoPaymentInfo');
       autoDiv.innerHTML = `
         <p><strong>✅ رقم الطلب:</strong> ${currentOrderId}</p>
@@ -207,17 +209,23 @@ async function createOrder() {
       document.querySelector('#payModal .modal-content p:first-of-type').style.display = 'none';
       const btn = document.getElementById('confirmPayBtn');
       btn.innerHTML = '🔍 تحققت من الدفع';
-      btn.onclick = () => verifyPayment(currentOrderId, currentMethod);
-      alert(`✅ تم إنشاء الطلب رقم: ${currentOrderId}\nالمبلغ المطلوب: ${displayAmount}\nيمكنك نسخ العنوان والدفع ثم الضغط على تحققت من الدفع.`);
+      btn.onclick = () => verifyPayment(currentOrderId, currentMethod, usdPrice);
+      alert(`✅ تم إنشاء الطلب رقم: ${currentOrderId}\nالمبلغ المطلوب: ${displayAmount}\nبعد الإرسال اضغط "تحققت من الدفع".`);
     }
   } else {
     showToast('خطأ: ' + res.error);
   }
 }
 
-async function verifyPayment(orderId, method) {
+async function verifyPayment(orderId, method, usdPrice) {
   showToast('جاري التحقق...');
-  const res = await api('/api/verify-payment', 'POST', { orderId, method });
+  let expectedAmount = usdPrice;
+  if (method === 'trx') {
+    expectedAmount = usdPrice * TRX_PER_USDT;  // كمية TRX المتوقعة
+  } else if (method === 'usdt') {
+    expectedAmount = usdPrice;  // نفس قيمة الدولار
+  }
+  const res = await api('/api/verify-payment', 'POST', { orderId, method, expectedAmount });
   if (res.success && res.approved) {
     showToast('✅ تم تأكيد الدفع! يمكنك التحميل من طلباتي');
     closeModal();
