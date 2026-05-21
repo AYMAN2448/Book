@@ -39,9 +39,8 @@
       <option value="usdt">USDT (تحقق تلقائي)</option>
       <option value="bank">تحويل بنكي / كاشي (يدوي)</option>
     </select>
-    <p>سعر الكتاب: <span id="bookPrice"></span></p>
+    <p>المبلغ المطلوب: <span id="bookPrice"></span></p>
 
-    <!-- بيانات التحويل البنكي / كاشي (تظهر فقط عند اختيار bank) -->
     <div id="bankAccountInfo" style="display:none;">
       <div class="info-block">
         <h4>🏦 تحويل بنكي:</h4>
@@ -70,6 +69,8 @@
 
 <script src="/script.js"></script>
 <script>
+// إعدادات العملات
+const TRX_TO_USD = 0.25;        // 1 TRX = 0.25 دولار → 1 دولار = 4 TRX
 const LOCAL_CURRENCY_RATE = 530;    // 1 دولار = 530 جنيه سوداني (غيّر حسب عملتك)
 const LOCAL_CURRENCY_NAME = "جنيه سوداني";
 
@@ -108,7 +109,6 @@ fetch('/books.json')
 
 function openModal(book) {
   selectedBook = book;
-  // تعيين اسم الكتاب في التعليق
   document.getElementById('bookTitlePlaceholder').innerText = book.title;
   const method = document.getElementById('payMethod').value;
   updatePriceAndInfo(method);
@@ -124,8 +124,16 @@ function updatePriceAndInfo(method) {
     document.getElementById('bankAccountInfo').style.display = 'block';
     document.getElementById('bankProofDiv').style.display = 'block';
     document.getElementById('autoPaymentInfo').style.display = 'none';
-  } else {
-    priceSpan.innerText = selectedBook.price;
+  } 
+  else if (method === 'trx') {
+    const trxAmount = (selectedBook.price / TRX_TO_USD).toFixed(2);
+    priceSpan.innerText = `${trxAmount} TRX`;
+    document.getElementById('bankAccountInfo').style.display = 'none';
+    document.getElementById('bankProofDiv').style.display = 'none';
+    document.getElementById('autoPaymentInfo').style.display = 'none';
+  }
+  else if (method === 'usdt') {
+    priceSpan.innerText = `${selectedBook.price} USDT`;
     document.getElementById('bankAccountInfo').style.display = 'none';
     document.getElementById('bankProofDiv').style.display = 'none';
     document.getElementById('autoPaymentInfo').style.display = 'none';
@@ -148,31 +156,43 @@ function closeModal() {
 
 async function createOrder() {
   const method = document.getElementById('payMethod').value;
-  const amount = selectedBook.price;
+  let amountInUSD = selectedBook.price;
+  let amountToSend = amountInUSD; // سيكون بالدولار أساساً، لكن سنرسل المبلغ الحقيقي للعملة الرقمية في الطلب
+  let actualAmount = amountInUSD; // القيمة التي سيتم تخزينها في قاعدة البيانات هي الدولار
+
+  if (method === 'trx') {
+    actualAmount = (amountInUSD / TRX_TO_USD).toFixed(2); // كمية TRX المطلوبة
+  } else if (method === 'usdt') {
+    actualAmount = amountInUSD; // USDT تساوي الدولار
+  }
+
   let proof = null;
   if (method === 'bank') {
     proof = document.getElementById('bankProof').value.trim();
     if (!proof) return showToast('يرجى إدخال رقم الإيصال بعد التحويل');
   }
+
   const res = await api('/api/create-invoice', 'POST', {
     bookId: selectedBook.id,
     method,
-    amount,
+    amount: amountInUSD, // نخزن السعر بالدولار في قاعدة البيانات
+    actualAmount: actualAmount, // نرسل الكمية الفعلية للعملة الرقمية (سيتم استخدامها في العرض فقط)
     proof
   });
+
   if (res.success) {
     if (method === 'bank') {
-      // الطلب اليدوي: نعرض رقم الطلب مباشرة في تنبيه ثم نوجه لصفحة الطلبات
       alert(`✅ تم إنشاء الطلب رقم: ${res.orderId}\n\n📌 استخدم هذا الرقم عند التحويل البنكي أو كاشي.\nبعد التحويل، سجل رقم الإيصال في حقل الإثبات.\n\nسيتم مراجعة الطلب من قبل الأدمن.`);
       window.location.href = '/orders.html';
     } else {
       currentOrderId = res.orderId;
       currentMethod = method;
       const address = method === 'trx' ? 'TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L' : '0x1b90069d9503e1931d30a8884080cdf16bd0cded';
+      const displayAmount = method === 'trx' ? `${actualAmount} TRX` : `${actualAmount} USDT`;
       const autoDiv = document.getElementById('autoPaymentInfo');
       autoDiv.innerHTML = `
         <p><strong>✅ رقم الطلب:</strong> ${currentOrderId}</p>
-        <p>أرسل <strong>${amount} ${method.toUpperCase()}</strong> إلى العنوان:</p>
+        <p>أرسل <strong>${displayAmount}</strong> إلى العنوان التالي:</p>
         <div class="copy-container">
           <span class="copy-address" onclick="copyToClipboard('${address}')">${address}</span>
           <button class="copy-btn" onclick="copyToClipboard('${address}')">📋 نسخ</button>
@@ -188,7 +208,7 @@ async function createOrder() {
       const btn = document.getElementById('confirmPayBtn');
       btn.innerHTML = '🔍 تحققت من الدفع';
       btn.onclick = () => verifyPayment(currentOrderId, currentMethod);
-      alert(`✅ تم إنشاء الطلب رقم: ${currentOrderId}\nيمكنك نسخ العنوان والدفع ثم الضغط على تحققت من الدفع.`);
+      alert(`✅ تم إنشاء الطلب رقم: ${currentOrderId}\nالمبلغ المطلوب: ${displayAmount}\nيمكنك نسخ العنوان والدفع ثم الضغط على تحققت من الدفع.`);
     }
   } else {
     showToast('خطأ: ' + res.error);
