@@ -68,13 +68,10 @@
 
 <script src="/script.js"></script>
 <script>
-// ========== إعدادات سعر الصرف والخصم ==========
 const USD_TO_LOCAL = 4000;
 const LOCAL_CURRENCY_NAME = "ج.س";
 const USD_TO_TRX = 6.7;
 const DISCOUNT_RATE = 0.5;
-
-// العنوان الموحد لاستقبال TRX و USDT (TRC-20)
 const CRYPTO_ADDRESS = "TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L";
 
 let selectedBook = null;
@@ -239,13 +236,20 @@ async function verifyPayment(orderId, method, usdPrice) {
   if (method === 'trx') {
     expectedAmount = usdPrice * USD_TO_TRX;
   }
-  const res = await api('/api/verify-payment', 'POST', { orderId, method, expectedAmount });
-  if (res.success && res.approved) {
-    showToast('✅ تم تأكيد الدفع! يمكنك التحميل من طلباتي');
-    closeModal();
-    window.location.href = '/orders.html';
-  } else {
-    showToast('❌ لم يتم العثور على الدفع. تأكد من المبلغ والمذكرة.');
+  try {
+    const res = await api('/api/verify-payment', 'POST', { orderId, method, expectedAmount });
+    console.log('Verify response:', res);
+    if (res.success && res.approved === true) {
+      showToast('✅ تم تأكيد الدفع! يمكنك التحميل من طلباتي');
+      closeModal();
+      window.location.href = '/orders.html';
+    } else {
+      let errorMsg = res.error || 'لم يتم العثور على الدفع. تأكد من المبلغ والمذكرة.';
+      showToast('❌ ' + errorMsg);
+    }
+  } catch (err) {
+    console.error('Verify payment error:', err);
+    showToast('⚠️ خطأ في الاتصال بالخادم: ' + err.message);
   }
 }
 </script>
