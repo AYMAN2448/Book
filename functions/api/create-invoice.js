@@ -20,8 +20,6 @@ export async function onRequestPost({ request, env }) {
     }
 
     const now = Date.now();
-    // تأكد من أن الجدول orders له الأعمدة: session_id, book_id, method, amount, status, proof, created_at, updated_at
-    // إذا كان هناك عمود file_url أو tx_hash غير موجود، فسيتم تجاهلها.
     const result = await env.DB.prepare(
       `INSERT INTO orders (session_id, book_id, method, amount, status, proof, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
