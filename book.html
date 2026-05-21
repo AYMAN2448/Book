@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>تفاصيل الكتاب - مكتبة الكتب</title>
+<title>جاري تحميل الكتاب...</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 <style>
@@ -34,12 +34,12 @@
   <div id="bookDetailContent">جاري تحميل الكتاب...</div>
 </div>
 
-<!-- مودال الدفع (نفس الموجود في index.html) -->
+<!-- مودال الدفع -->
 <div class="modal" id="payModal">
   <div class="modal-content">
     <h3>اختر طريقة الدفع</h3>
     <select id="payMethod">
-      <option value="bank">تحويل كاشي (يدوي) - عملة محلية</option>
+      <option value="bank">تحويل كاشي (يدوي) - جنيه سوداني </option>
       <option value="usdt">USDT (تحقق تلقائي)</option>
       <option value="trx">TRX (تحقق تلقائي)</option>
     </select>
@@ -65,7 +65,7 @@
 
 <script src="/script.js"></script>
 <script>
-// ========== إعدادات سعر الصرف والخصم (نفس القيم) ==========
+// ========== إعدادات سعر الصرف والخصم ==========
 const USD_TO_LOCAL = 4100;
 const LOCAL_CURRENCY_NAME = "ج.س";
 const USD_TO_TRX = 6.7;
@@ -76,6 +76,7 @@ let selectedBook = null;
 let currentOrderId = null;
 let currentMethod = null;
 
+// ========== دوال مساعدة ==========
 function copyToClipboard(text) {
   navigator.clipboard.writeText(text).then(() => showToast('✅ تم نسخ العنوان')).catch(() => showToast('❌ فشل النسخ'));
 }
@@ -91,22 +92,25 @@ function showToast(msg) {
   setTimeout(() => toast.style.display = 'none', 2000);
 }
 
-// قراءة معرف الكتاب من الرابط (مثال: ?id=1 أو /book?id=1)
+// ========== استخراج معرف الكتاب من الرابط (يدعم /book/id و ?id=id) ==========
 function getBookIdFromUrl() {
-  const params = new URLSearchParams(window.location.search);
-  let id = params.get('id');
-  if (!id) {
-    // محاولة قراءة المسار مثلاً /book/1
-    const path = window.location.pathname;
-    const parts = path.split('/');
-    if (parts.length > 2 && parts[1] === 'book') {
-      id = parts[2];
-    }
+  const path = window.location.pathname;
+  const parts = path.split('/');
+  // الحالة المفضلة: /book/123
+  if (parts.length >= 3 && parts[1] === 'book') {
+    return parseInt(parts[2]);
   }
-  return id ? parseInt(id) : null;
+  // الحالة القديمة: ?id=123
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (id) return parseInt(id);
+  // الحالة غير القياسية: /book=123 (لمعالجة أخطاء قديمة)
+  const match = path.match(/\/book=(\d+)/);
+  if (match) return parseInt(match[1]);
+  return null;
 }
 
-// تحميل وعرض الكتاب
+// ========== تحميل وعرض الكتاب مع تحسين SEO ==========
 async function loadBook() {
   const bookId = getBookIdFromUrl();
   if (!bookId) {
@@ -119,7 +123,40 @@ async function loadBook() {
     const book = books.find(b => b.id == bookId);
     if (!book) throw new Error('الكتاب غير موجود');
     selectedBook = book;
-    // عرض تفاصيل الكتاب
+
+    // 1. تحديث عنوان الصفحة والوصف
+    document.title = `${book.title} - مكتبة الكتب الرقمية`;
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.name = 'description';
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.content = `${book.title} - كتاب من تأليف ${book.author || 'غير معروف'}. السعر: ${book.price} دولار. اشتري الكتاب الآن وادفع بعملات رقمية أو تحويل كاشي مع خصم 50%.`;
+
+    // 2. إضافة بيانات مهيكلة (JSON-LD) لتحسين ظهور الكتاب في بحث Google
+    const jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "Book",
+      "name": book.title,
+      "author": { "@type": "Person", "name": book.author || "غير معروف" },
+      "description": book.description || `كتاب ${book.title} للمؤلف ${book.author}`,
+      "offers": {
+        "@type": "Offer",
+        "price": book.price,
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock",
+        "url": window.location.href
+      }
+    };
+    const oldScript = document.querySelector('script[type="application/ld+json"]');
+    if (oldScript) oldScript.remove();
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.textContent = JSON.stringify(jsonLd);
+    document.head.appendChild(script);
+
+    // 3. عرض محتوى الكتاب في الصفحة
     document.getElementById('bookDetailContent').innerHTML = `
       <div class="card">
         <img src="${book.cover}" alt="${book.title}">
@@ -128,6 +165,8 @@ async function loadBook() {
         <p>السعر: ${book.price} $</p>
         <p>الوصف: ${book.description || ''}</p>
         <button class="btn" onclick="openModal()">شراء الآن</button>
+        <br><br>
+        <a href="/books.html">← العودة إلى المكتبة</a>
       </div>
     `;
   } catch (err) {
@@ -135,7 +174,7 @@ async function loadBook() {
   }
 }
 
-// دوال الدفع (تم نسخها من index.html مع تعديلات بسيطة)
+// ========== دوال الدفع (مودال) ==========
 function openModal() {
   if (!selectedBook) return;
   const method = document.getElementById('payMethod').value;
@@ -154,18 +193,25 @@ function updatePriceAndInfo(method) {
   if (method === 'bank') {
     const originalLocal = selectedBook.price * USD_TO_LOCAL;
     const discountedLocal = originalLocal * (1 - DISCOUNT_RATE);
-    priceDisplay.innerHTML = `<div><span class="old-price">${originalLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME}</span> <span class="new-price">${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME} (بعد الخصم 50%)</span></div>`;
+    priceDisplay.innerHTML = `
+      <div style="margin:10px 0;">
+        <span class="old-price">${originalLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME}</span>
+        <span class="new-price">${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME} (بعد الخصم 50%)</span>
+      </div>
+    `;
     discountBadge.style.display = 'block';
     bankAccountDiv.style.display = 'block';
     bankProofDiv.style.display = 'block';
     autoDiv.style.display = 'none';
-  } else if (method === 'usdt') {
+  } 
+  else if (method === 'usdt') {
     priceDisplay.innerHTML = `<div class="new-price">${selectedBook.price} USDT (بدون خصم)</div>`;
     discountBadge.style.display = 'none';
     bankAccountDiv.style.display = 'none';
     bankProofDiv.style.display = 'none';
     autoDiv.style.display = 'none';
-  } else if (method === 'trx') {
+  }
+  else if (method === 'trx') {
     const trxAmount = selectedBook.price * USD_TO_TRX;
     priceDisplay.innerHTML = `<div class="new-price">${trxAmount.toFixed(2)} TRX (بدون خصم)</div>`;
     discountBadge.style.display = 'none';
@@ -173,6 +219,7 @@ function updatePriceAndInfo(method) {
     bankProofDiv.style.display = 'none';
     autoDiv.style.display = 'none';
   }
+
   const btn = document.getElementById('confirmPayBtn');
   btn.innerHTML = 'تأكيد الطلب';
   btn.onclick = createOrder;
@@ -193,6 +240,7 @@ async function createOrder() {
   const method = document.getElementById('payMethod').value;
   const usdPrice = selectedBook.price;
   let displayAmount = '';
+
   if (method === 'bank') {
     const discountedLocal = (usdPrice * USD_TO_LOCAL) * (1 - DISCOUNT_RATE);
     displayAmount = `${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME} (بعد الخصم 50%)`;
@@ -201,17 +249,20 @@ async function createOrder() {
   } else if (method === 'usdt') {
     displayAmount = `${usdPrice} USDT`;
   }
+
   let proof = null;
   if (method === 'bank') {
     proof = document.getElementById('bankProof').value.trim();
     if (!proof) return showToast('يرجى إدخال رقم الإيصال بعد التحويل');
   }
+
   const res = await api('/api/create-invoice', 'POST', {
     bookId: selectedBook.id,
     method,
     amount: usdPrice,
     proof
   });
+
   if (res.success) {
     if (method === 'bank') {
       alert(`✅ تم إنشاء الطلب رقم: ${res.orderId}\nالمبلغ المطلوب: ${displayAmount}\n\n📌 استخدم هذا الرقم عند التحويل.\nبعد التحويل، سجل رقم الإيصال في حقل الإثبات.`);
@@ -268,8 +319,8 @@ async function verifyPayment(orderId, method, usdPrice) {
   }
 }
 
-// تحميل الكتاب عند بدء الصفحة
+// تشغيل تحميل الكتاب عند بدء الصفحة
 loadBook();
 </script>
 </body>
-</html>
+</html> 
