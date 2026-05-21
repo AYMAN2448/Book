@@ -24,7 +24,7 @@
     <a href="/">الرئيسية</a>
     <a href="/books.html">الكتب</a>
     <a href="/orders.html">طلباتي</a>
-    
+    <a href="/admin-login.html">الأدمن</a>
   </nav>
 </header>
 
@@ -242,13 +242,20 @@ async function verifyPayment(orderId, method, usdPrice) {
   if (method === 'trx') {
     expectedAmount = usdPrice * USD_TO_TRX;
   }
-  const res = await api('/api/verify-payment', 'POST', { orderId, method, expectedAmount });
-  if (res.success && res.approved) {
-    showToast('✅ تم تأكيد الدفع! يمكنك التحميل من طلباتي');
-    closeModal();
-    window.location.href = '/orders.html';
-  } else {
-    showToast('❌ لم يتم العثور على الدفع. تأكد من المبلغ والمذكرة.');
+  try {
+    const res = await api('/api/verify-payment', 'POST', { orderId, method, expectedAmount });
+    console.log('Verify response:', res);
+    if (res.success && res.approved === true) {
+      showToast('✅ تم تأكيد الدفع! يمكنك التحميل من طلباتي');
+      closeModal();
+      window.location.href = '/orders.html';
+    } else {
+      let errorMsg = res.error || 'لم يتم العثور على الدفع. تأكد من المبلغ والمذكرة.';
+      showToast('❌ ' + errorMsg);
+    }
+  } catch (err) {
+    console.error('Verify payment error:', err);
+    showToast('⚠️ خطأ في الاتصال بالخادم: ' + err.message);
   }
 }
 </script>
