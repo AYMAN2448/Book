@@ -1,6 +1,6 @@
 export async function onRequestPost({ request, env }) {
   try {
-    const { orderId, method } = await request.json();
+    const { orderId, method, expectedAmount } = await request.json();
     const sessionId = request.headers.get('X-Session-Id');
     if (!sessionId) return Response.json({ success: false, error: 'لا توجد جلسة' });
 
@@ -10,10 +10,16 @@ export async function onRequestPost({ request, env }) {
     if (!order) return Response.json({ success: false, error: 'الطلب غير موجود' });
     if (order.status !== 'pending') return Response.json({ success: false, error: 'تمت معالجة الطلب مسبقاً' });
 
+    // المبلغ المتوقع من frontend (بالدولار للـ USDT، وبـ TRX للـ TRX)
+    let requiredAmount = expectedAmount;
+    if (method === 'usdt') {
+      requiredAmount = expectedAmount; // دولار
+    } else if (method === 'trx') {
+      requiredAmount = expectedAmount; // TRX
+    }
+
     let verified = false;
     let txHash = null;
-    const expectedAmount = order.amount;
-
     const trxAddress = 'TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L';
     const usdtAddress = '0x1b90069d9503e1931d30a8884080cdf16bd0cded';
     const usdtContract = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
@@ -30,7 +36,8 @@ export async function onRequestPost({ request, env }) {
           if (toAddress && (toAddress === trxAddress || toAddress === trxAddress.toLowerCase())) {
             const amountTRX = contract.parameter.value.amount / 1e6;
             const memo = tx.raw_data?.data ? Buffer.from(tx.raw_data.data, 'hex').toString() : '';
-            if (amountTRX >= expectedAmount && (memo.includes(orderId.toString()) || memo.includes(sessionId))) {
+            // نتحقق من أن المبلغ المرسل أكبر أو يساوي المبلغ المطلوب (بالـ TRX) وأن memo يحتوي orderId أو sessionId
+            if (amountTRX >= requiredAmount && (memo.includes(orderId.toString()) || memo.includes(sessionId))) {
               verified = true;
               txHash = tx.txID;
               break;
@@ -45,7 +52,7 @@ export async function onRequestPost({ request, env }) {
       for (const tx of data.data || []) {
         if (tx.to && tx.to.toLowerCase() === usdtAddress.toLowerCase() && tx.token_info?.address?.toLowerCase() === usdtContract.toLowerCase()) {
           const amountUSDT = parseInt(tx.value) / 1e6;
-          if (amountUSDT >= expectedAmount) {
+          if (amountUSDT >= requiredAmount) {
             verified = true;
             txHash = tx.transaction_id;
             break;
@@ -62,7 +69,7 @@ export async function onRequestPost({ request, env }) {
       if (!book) return Response.json({ success: false, error: 'الكتاب غير موجود' });
 
       const downloadToken = crypto.randomUUID();
-      const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 ساعة صلاحية
+      const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
 
       await env.DB.prepare(
         `UPDATE orders SET status = 'approved', download_token = ?, token_expires_at = ?, tx_hash = ?, updated_at = ? WHERE id = ?`
