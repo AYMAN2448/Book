@@ -17,3 +17,23 @@ async function api(url, method = 'GET', body = null) {
 function toast(msg, isError = false) {
   alert(msg);
 }
+// زر الدعم العائم - إظهار/إخفاء القائمة
+function toggleSupportMenu() {
+  const menu = document.getElementById('supportMenu');
+  if (menu) {
+    if (menu.style.display === 'flex') {
+      menu.style.display = 'none';
+    } else {
+      menu.style.display = 'flex';
+    }
+  }
+}
+
+// إغلاق القائمة عند النقر خارجها
+document.addEventListener('click', function(event) {
+  const menu = document.getElementById('supportMenu');
+  const btn = document.getElementById('supportBtn');
+  if (menu && btn && !btn.contains(event.target) && !menu.contains(event.target)) {
+    menu.style.display = 'none';
+  }
+});
