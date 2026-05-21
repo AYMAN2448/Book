@@ -1,0 +1,55 @@
+export async function onRequest(context) {
+  const { request, env } = context;
+  const url = new URL(request.url);
+  const baseUrl = `${url.protocol}//${url.host}`;
+
+  // جلب الكتب من books.json
+  let books = [];
+  try {
+    const booksRes = await fetch(`${baseUrl}/books.json`);
+    books = await booksRes.json();
+  } catch (e) {
+    console.error('Failed to fetch books.json for sitemap');
+  }
+
+  // الصفحات الثابتة
+  const staticPages = [
+    { loc: '/', changefreq: 'daily', priority: 1.0 },
+    { loc: '/books.html', changefreq: 'daily', priority: 0.9 },
+    { loc: '/index.html', changefreq: 'daily', priority: 0.8 }
+  ];
+
+  // إضافة صفحات الكتب (باستخدام الروابط النظيفة /book/ رقم)
+  const bookPages = books.map(book => ({
+    loc: `/book/${book.id}`,
+    changefreq: 'weekly',
+    priority: 0.7,
+    lastmod: new Date().toISOString().split('T')[0]
+  }));
+
+  // (اختياري) إضافة ملف PDF نفسه إذا كان موجوداً في الجذر
+  const pdfLinks = [];
+  // يمكن إضافة رابط الـ PDF يدوياً إذا كنت تعرف اسمه:
+  // pdfLinks.push({ loc: '/sejonalmhd.pdf', changefreq: 'monthly', priority: 0.5 });
+
+  const allUrls = [...staticPages, ...bookPages, ...pdfLinks];
+
+  // إنشاء محتوى XML بخريطة الموقع
+  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${allUrls.map(u => `
+  <url>
+    <loc>${baseUrl}${u.loc}</loc>
+    <lastmod>${u.lastmod || new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>${u.changefreq}</changefreq>
+    <priority>${u.priority}</priority>
+  </url>`).join('')}
+</urlset>`;
+
+  return new Response(sitemap, {
+    headers: {
+      'Content-Type': 'application/xml',
+      'Cache-Control': 'public, max-age=3600'  // يخزن مؤقتاً لمدة ساعة
+    }
+  });
+}
