@@ -4,16 +4,31 @@ export async function onRequestGet({ request, env }) {
   const token = auth.slice(7);
   if (token !== 'secret_admin_token') return Response.json({ success: false }, { status: 401 });
 
-  // استعلام يجلب الطلبات مع اسم الكتاب من جدول books
-  const orders = await env.DB.prepare(
-    `SELECT o.*, b.title as book_title
-     FROM orders o
-     LEFT JOIN books b ON o.book_id = b.id
-     WHERE o.status IN ('pending', 'pending_review')
-     ORDER BY o.created_at DESC`
+  // جلب الطلبات من قاعدة البيانات
+  const ordersResult = await env.DB.prepare(
+    `SELECT * FROM orders WHERE status IN ('pending', 'pending_review') ORDER BY created_at DESC`
   ).all();
+  
+  // جلب بيانات الكتب من books.json
+  let books = [];
+  try {
+    const booksRes = await fetch('https://' + request.headers.get('host') + '/books.json');
+    books = await booksRes.json();
+  } catch (e) {
+    console.error('Failed to fetch books.json', e);
+  }
 
-  return Response.json({ success: true, orders: orders.results });
+  // إضافة اسم الكتاب و session_id كمعرف للمستخدم
+  const ordersWithDetails = ordersResult.results.map(order => {
+    const book = books.find(b => b.id == order.book_id);
+    return {
+      ...order,
+      book_title: book ? book.title : 'غير معروف',
+      user_display: order.session_id ? order.session_id.substring(0, 12) + '...' : 'غير معروف'
+    };
+  });
+
+  return Response.json({ success: true, orders: ordersWithDetails });
 }
 
 export async function onRequestPost({ request, env }) {
@@ -27,7 +42,7 @@ export async function onRequestPost({ request, env }) {
   if (!order) return Response.json({ success: false, error: 'الطلب غير موجود' });
 
   if (action === 'approve') {
-    // جلب بيانات الكتاب من books.json (أو يمكن استخدام جدول books)
+    // جلب بيانات الكتاب من books.json
     const booksRes = await fetch('https://' + request.headers.get('host') + '/books.json');
     const books = await booksRes.json();
     const book = books.find(b => b.id == order.book_id);
