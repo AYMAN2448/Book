@@ -2,7 +2,6 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>طلباتي</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
@@ -21,11 +20,11 @@
   <div id="ordersList"></div>
 </div>
 
-<!-- مودال رفع الإثبات -->
+<!-- مودال رفع الإيصال -->
 <div class="modal" id="proofModal">
   <div class="modal-content">
     <h3>رفع إثبات الدفع</h3>
-    <input type="url" id="proofUrl" placeholder="رابط صورة الإثبات">
+    <input type="text" id="proofNumber" placeholder="رقم الإيصال / معرف التحويل">
     <button class="btn" onclick="submitProof()">إرسال</button>
     <button class="btn" style="background:#ccc; color:#333;" onclick="closeProofModal()">إلغاء</button>
   </div>
@@ -40,22 +39,20 @@ loadOrders();
 async function loadOrders() {
   const res = await api('/api/orders');
   if (!res.success) return;
-  
+  const orders = res.orders;
   const list = document.getElementById('ordersList');
-  if (res.orders.length === 0) {
+  if (orders.length === 0) {
     list.innerHTML = '<p>لا توجد طلبات بعد</p>';
     return;
   }
-  
-  list.innerHTML = res.orders.map(o => `
+  list.innerHTML = orders.map(o => `
     <div class="card">
       <h3>${o.book_title}</h3>
       <p>الطريقة: ${o.method} | المبلغ: ${o.amount} $</p>
-      <p>الحالة: <span class="status ${o.status}">${o.status}</span></p>
-      ${o.status === 'approved' && o.file_url ? 
-        `<a href="${o.file_url}" target="_blank" class="btn">تحميل الكتاب</a>` : ''}
-      ${o.status === 'pending' ? 
-        `<button class="btn" onclick="openProofModal(${o.id})">رفع إثبات الدفع</button>` : ''}
+      <p>الحالة: <span class="status ${o.status}">${o.status === 'pending' ? 'قيد الانتظار' : (o.status === 'pending_review' ? 'مراجعة' : (o.status === 'approved' ? 'تمت الموافقة' : 'مرفوض'))}</span></p>
+      ${o.status === 'approved' && o.file_url ? `<a href="${o.file_url}" target="_blank" class="btn">تحميل الكتاب</a>` : ''}
+      ${(o.status === 'pending' && o.method === 'bank') ? `<button class="btn" onclick="openProofModal(${o.id})">رفع إيصال الدفع</button>` : ''}
+      ${(o.status === 'pending' && (o.method === 'trx' || o.method === 'usdt')) ? '<p>جاري التحقق التلقائي...</p>' : ''}
     </div>
   `).join('');
 }
@@ -64,22 +61,21 @@ function openProofModal(id) {
   currentOrderId = id;
   document.getElementById('proofModal').classList.add('active');
 }
-
 function closeProofModal() {
   document.getElementById('proofModal').classList.remove('active');
 }
-
 async function submitProof() {
-  const proof = document.getElementById('proofUrl').value;
-  if (!proof) return toast('ادخل رابط الإثبات');
-  
+  const proof = document.getElementById('proofNumber').value;
+  if (!proof) return toast('أدخل رقم الإيصال');
   const res = await api('/api/submit-proof', 'POST', { orderId: currentOrderId, proof });
   if (res.success) {
-    toast('تم رفع الإثبات. بانتظار المراجعة');
+    toast('تم رفع الإيصال، سيتم مراجعته من قبل الأدمن');
     closeProofModal();
     loadOrders();
+  } else {
+    toast('خطأ: ' + res.error);
   }
 }
 </script>
 </body>
-</html>
+</html> 
