@@ -2,6 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>لوحة التحكم</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
@@ -15,6 +16,17 @@
   <h3>الطلبات المعلقة</h3>
   <div id="ordersList"></div>
 </div>
+
+<!-- زر الدعم العائم (اختياري) -->
+<div class="support-float">
+  <div class="support-btn" id="supportBtn" onclick="toggleSupportMenu()">💬</div>
+  <div class="support-menu" id="supportMenu">
+    <a href="https://t.me/username" target="_blank" class="telegram">📱 الدعم عبر تيليجرام</a>
+    <a href="https://m.me/pageusername" target="_blank" class="facebook">📘 الدعم عبر فيسبوك</a>
+  </div>
+</div>
+
+<script src="/script.js"></script>
 <script>
 const token = localStorage.getItem('admin_token');
 if (!token) location.href = '/admin-login.html';
@@ -36,13 +48,16 @@ async function loadOrders() {
   }
   list.innerHTML = data.orders.map(o => `
     <div class="card">
-      <h4>${o.book_title}</h4>
-      <p>الطريقة: ${o.method} | المبلغ: ${o.amount} $</p>
-      <p>الحالة: ${o.status === 'pending_review' ? 'مراجعة (تم رفع الإيصال)' : 'قيد الانتظار'}</p>
-      ${o.proof ? `<p><strong>رقم الإيصال:</strong> ${o.proof}</p>` : ''}
+      <h4>📖 الكتاب: ${o.book_title || 'غير معروف'}</h4>
+      <p>👤 رقم المستخدم: ${o.user_id}</p>
+      <p>💰 المبلغ: ${o.amount} $</p>
+      <p>🔢 رقم الطلب: ${o.id}</p>
+      <p>📱 طريقة الدفع: ${o.method === 'bank' ? 'تحويل كاشي' : o.method.toUpperCase()}</p>
+      <p>📝 الحالة: <span class="status ${o.status}">${o.status === 'pending' ? 'قيد الانتظار' : 'مراجعة'}</span></p>
+      ${o.proof ? `<p>🧾 رقم الإيصال / المعرف: <strong>${o.proof}</strong></p>` : ''}
       <div style="margin-top:10px;">
-        <button class="btn" onclick="updateOrder(${o.id}, 'approve')">موافقة</button>
-        <button class="btn" onclick="updateOrder(${o.id}, 'reject')" style="background:#d63031;">رفض</button>
+        <button class="btn" onclick="updateOrder(${o.id}, 'approve')">✅ موافقة</button>
+        <button class="btn" onclick="updateOrder(${o.id}, 'reject')" style="background:#d63031;">❌ رفض</button>
       </div>
     </div>
   `).join('');
@@ -51,7 +66,10 @@ async function loadOrders() {
 async function updateOrder(orderId, action) {
   const res = await fetch('/api/admin/orders', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + token
+    },
     body: JSON.stringify({ orderId, action })
   });
   const data = await res.json();
