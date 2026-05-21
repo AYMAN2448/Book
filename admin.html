@@ -17,16 +17,6 @@
   <div id="ordersList"></div>
 </div>
 
-<!-- زر الدعم العائم (اختياري) -->
-<div class="support-float">
-  <div class="support-btn" id="supportBtn" onclick="toggleSupportMenu()">💬</div>
-  <div class="support-menu" id="supportMenu">
-    <a href="https://t.me/username" target="_blank" class="telegram">📱 الدعم عبر تيليجرام</a>
-    <a href="https://m.me/pageusername" target="_blank" class="facebook">📘 الدعم عبر فيسبوك</a>
-  </div>
-</div>
-
-<script src="/script.js"></script>
 <script>
 const token = localStorage.getItem('admin_token');
 if (!token) location.href = '/admin-login.html';
@@ -48,8 +38,8 @@ async function loadOrders() {
   }
   list.innerHTML = data.orders.map(o => `
     <div class="card">
-      <h4>📖 الكتاب: ${o.book_title || 'غير معروف'}</h4>
-      <p>👤 رقم المستخدم: ${o.user_id}</p>
+      <h4>📖 الكتاب: ${o.book_title}</h4>
+      <p>👤 المستخدم: ${o.user_display || 'غير معروف'}</p>
       <p>💰 المبلغ: ${o.amount} $</p>
       <p>🔢 رقم الطلب: ${o.id}</p>
       <p>📱 طريقة الدفع: ${o.method === 'bank' ? 'تحويل كاشي' : o.method.toUpperCase()}</p>
