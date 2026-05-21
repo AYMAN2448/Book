@@ -7,65 +7,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 <style>
-  .copy-container {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #fff;
-    padding: 8px 12px;
-    border-radius: 8px;
-    direction: ltr;
-    word-break: break-all;
-    margin: 10px 0;
-    border: 1px solid #ddd;
-  }
-  .copy-address {
-    flex: 1;
-    font-family: monospace;
-    font-size: 14px;
-    cursor: pointer;
-    user-select: all;
-  }
-  .copy-btn {
-    background: #e94560;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    padding: 6px 12px;
-    cursor: pointer;
-    font-size: 14px;
-  }
-  .copy-btn:hover { background: #c72a48; }
-  .toast-msg {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #333;
-    color: #fff;
-    padding: 8px 16px;
-    border-radius: 30px;
-    font-size: 14px;
-    z-index: 2000;
-    opacity: 0.9;
-  }
+  .copy-container { display: flex; align-items: center; gap: 8px; background: #fff; padding: 8px 12px; border-radius: 8px; direction: ltr; margin: 10px 0; border: 1px solid #ddd; }
+  .copy-address { flex: 1; font-family: monospace; font-size: 14px; cursor: pointer; user-select: all; }
+  .copy-btn { background: #e94560; color: white; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  .toast-msg { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 16px; border-radius: 30px; z-index: 2000; }
 </style>
 </head>
 <body>
-<header>
-  <h2>مكتبة الكتب</h2>
-  <nav>
-    <a href="/">الرئيسية</a>
-    <a href="/orders.html">طلباتي</a>
-  </nav>
-</header>
+<header><h2>مكتبة الكتب</h2><nav><a href="/">الرئيسية</a><a href="/orders.html">طلباتي</a></nav></header>
+<div class="container"><h2>الكتب المتاحة</h2><div class="grid" id="booksGrid"></div></div>
 
-<div class="container">
-  <h2>الكتب المتاحة</h2>
-  <div class="grid" id="booksGrid"></div>
-</div>
-
-<!-- مودال الدفع -->
 <div class="modal" id="payModal">
   <div class="modal-content">
     <h3>اختر طريقة الدفع</h3>
@@ -74,44 +25,33 @@
       <option value="usdt">USDT (تحقق تلقائي)</option>
       <option value="bank">تحويل بنكي (يدوي)</option>
     </select>
-    <p>سعر الكتاب: <span id="bookPrice"></span> $</p>
-
-    <div id="bankProofDiv" style="display:none;">
-      <label>رقم الإيصال / معرف التحويل:</label>
-      <input type="text" id="bankProof" placeholder="أدخل رقم الإيصال">
-    </div>
-
+    <p>سعر الكتاب: <span id="bookPrice"></span></p>
+    <div id="bankProofDiv" style="display:none;"><label>رقم الإيصال / معرف التحويل:</label><input type="text" id="bankProof" placeholder="أدخل رقم الإيصال"></div>
     <div id="autoPaymentInfo" style="display:none; background:#f0f0f0; padding:10px; border-radius:8px; margin:10px 0;"></div>
-
     <button class="btn" id="confirmPayBtn" onclick="createOrder()">تأكيد الطلب</button>
     <button class="btn" style="background:#ccc; color:#333;" onclick="closeModal()">إلغاء</button>
   </div>
 </div>
 
 <!-- زر الدعم -->
-<div class="support-float">
-  <div class="support-btn" id="supportBtn" onclick="toggleSupportMenu()">💬</div>
-  <div class="support-menu" id="supportMenu">
-    <a href="https://t.me/username" target="_blank" class="telegram"><span>📱</span> الدعم عبر تيليجرام</a>
-    <a href="https://m.me/pageusername" target="_blank" class="facebook"><span>📘</span> الدعم عبر فيسبوك</a>
-  </div>
-</div>
+<div class="support-float"><div class="support-btn" onclick="toggleSupportMenu()">💬</div><div class="support-menu" id="supportMenu"><a href="https://t.me/username" target="_blank">📱 تيليجرام</a><a href="https://m.me/pageusername" target="_blank">📘 فيسبوك</a></div></div>
 
 <script src="/script.js"></script>
 <script>
+// ========== إعدادات العملة المحلية ==========
+const LOCAL_CURRENCY_RATE = 530;   // 1 دولار = 530 ريال يمني (غيّر حسب عملتك)
+const LOCAL_CURRENCY_NAME = "ريال يمني";
+
 let selectedBook = null;
 let currentOrderId = null;
 let currentMethod = null;
 
-function copyToClipboard(text, elementId) {
-  navigator.clipboard.writeText(text).then(() => {
-    showToast('✅ تم نسخ العنوان');
-  }).catch(() => showToast('❌ فشل النسخ'));
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => showToast('✅ تم نسخ العنوان')).catch(() => showToast('❌ فشل النسخ'));
 }
 function showToast(msg) {
   let toast = document.querySelector('.toast-msg') || (() => { let d = document.createElement('div'); d.className = 'toast-msg'; document.body.appendChild(d); return d; })();
-  toast.innerText = msg;
-  toast.style.display = 'block';
+  toast.innerText = msg; toast.style.display = 'block';
   setTimeout(() => toast.style.display = 'none', 2000);
 }
 
@@ -123,8 +63,14 @@ fetch('/books.json').then(r=>r.json()).then(books => {
 
 function openModal(book) {
   selectedBook = book;
-  document.getElementById('bookPrice').innerText = book.price;
   const method = document.getElementById('payMethod').value;
+  const priceSpan = document.getElementById('bookPrice');
+  if (method === 'bank') {
+    const localPrice = (book.price * LOCAL_CURRENCY_RATE).toFixed(2);
+    priceSpan.innerText = `${localPrice} ${LOCAL_CURRENCY_NAME}`;
+  } else {
+    priceSpan.innerText = book.price;
+  }
   document.getElementById('bankProofDiv').style.display = method === 'bank' ? 'block' : 'none';
   document.getElementById('autoPaymentInfo').style.display = 'none';
   const btn = document.getElementById('confirmPayBtn');
@@ -134,8 +80,17 @@ function openModal(book) {
   document.getElementById('payModal').classList.add('active');
 }
 
-document.getElementById('payMethod').addEventListener('change', e => {
+document.getElementById('payMethod').addEventListener('change', (e) => {
   const method = e.target.value;
+  const priceSpan = document.getElementById('bookPrice');
+  if (selectedBook) {
+    if (method === 'bank') {
+      const localPrice = (selectedBook.price * LOCAL_CURRENCY_RATE).toFixed(2);
+      priceSpan.innerText = `${localPrice} ${LOCAL_CURRENCY_NAME}`;
+    } else {
+      priceSpan.innerText = selectedBook.price;
+    }
+  }
   document.getElementById('bankProofDiv').style.display = method === 'bank' ? 'block' : 'none';
   document.getElementById('autoPaymentInfo').style.display = 'none';
   const btn = document.getElementById('confirmPayBtn');
@@ -148,7 +103,7 @@ function closeModal() { document.getElementById('payModal').classList.remove('ac
 
 async function createOrder() {
   const method = document.getElementById('payMethod').value;
-  const amount = selectedBook.price;
+  const amount = selectedBook.price; // نرسل السعر بالدولار إلى قاعدة البيانات
   let proof = null;
   if (method === 'bank') {
     proof = document.getElementById('bankProof').value.trim();
@@ -168,8 +123,8 @@ async function createOrder() {
         <p><strong>✅ رقم الطلب:</strong> ${currentOrderId}</p>
         <p>أرسل <strong>${amount} ${method.toUpperCase()}</strong> إلى العنوان:</p>
         <div class="copy-container">
-          <span class="copy-address" onclick="copyToClipboard('${address}','addr')">${address}</span>
-          <button class="copy-btn" onclick="copyToClipboard('${address}','addr')">📋 نسخ</button>
+          <span class="copy-address" onclick="copyToClipboard('${address}')">${address}</span>
+          <button class="copy-btn" onclick="copyToClipboard('${address}')">📋 نسخ</button>
         </div>
         <p>📌 اكتب رقم الطلب <strong>${currentOrderId}</strong> في المذكرة (Memo).</p>
         <p>بعد الإرسال اضغط "تحققت من الدفع".</p>
