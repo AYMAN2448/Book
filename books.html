@@ -2,6 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>الكتب - مكتبة الكتب</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
@@ -20,6 +21,7 @@
   <div class="grid" id="booksGrid"></div>
 </div>
 
+<!-- مودال الدفع -->
 <div class="modal" id="payModal">
   <div class="modal-content">
     <h3>اختر طريقة الدفع</h3>
@@ -29,15 +31,18 @@
       <option value="bank">تحويل بنكي (يدوي)</option>
     </select>
     <p>سعر الكتاب: <span id="bookPrice"></span> $</p>
+
     <div id="bankProofDiv" style="display:none;">
       <label>رقم الإيصال / معرف التحويل:</label>
       <input type="text" id="bankProof" placeholder="أدخل رقم الإيصال">
     </div>
+
     <div id="autoPaymentInfo" style="display:none; background:#f0f0f0; padding:10px; border-radius:8px; margin:10px 0;">
       <p>أرسل المبلغ إلى العنوان التالي:</p>
       <p id="paymentAddress"></p>
-      <p>بعد الإرسال اضغط "تحققت من الدفع"</p>
+      <p>📌 <strong>هام:</strong> اكتب رقم الطلب (سيظهر بعد التأكيد) في خانة المذكرة (Memo).</p>
     </div>
+
     <button class="btn" id="confirmPayBtn" onclick="createOrder()">تأكيد الطلب</button>
     <button class="btn" style="background:#ccc; color:#333;" onclick="closeModal()">إلغاء</button>
   </div>
@@ -46,6 +51,8 @@
 <script src="/script.js"></script>
 <script>
 let selectedBook = null;
+let currentOrderId = null;
+let currentMethod = null;
 
 fetch('/books.json')
   .then(r => r.json())
@@ -65,7 +72,13 @@ function openModal(book) {
   selectedBook = book;
   document.getElementById('bookPrice').innerText = book.price;
   document.getElementById('payModal').classList.add('active');
-  togglePaymentInfo(document.getElementById('payMethod').value);
+  const method = document.getElementById('payMethod').value;
+  togglePaymentInfo(method);
+  // إعادة ضبط الزر
+  const confirmBtn = document.getElementById('confirmPayBtn');
+  confirmBtn.innerHTML = 'تأكيد الطلب';
+  confirmBtn.onclick = createOrder;
+  currentOrderId = null;
 }
 
 function togglePaymentInfo(method) {
@@ -76,15 +89,15 @@ function togglePaymentInfo(method) {
     bankDiv.style.display = 'none';
     let address = method === 'trx' ? 'TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L' : '0x1b90069d9503e1931d30a8884080cdf16bd0cded';
     document.getElementById('paymentAddress').innerText = address;
-    document.getElementById('confirmPayBtn').innerText = 'تحققت من الدفع';
   } else {
     autoDiv.style.display = 'none';
     bankDiv.style.display = 'block';
-    document.getElementById('confirmPayBtn').innerText = 'تأكيد الطلب وإرسال الإيصال';
   }
 }
 
-document.getElementById('payMethod').addEventListener('change', (e) => togglePaymentInfo(e.target.value));
+document.getElementById('payMethod').addEventListener('change', (e) => {
+  togglePaymentInfo(e.target.value);
+});
 
 function closeModal() {
   document.getElementById('payModal').classList.remove('active');
@@ -105,11 +118,33 @@ async function createOrder() {
     proof
   });
   if (res.success) {
-    toast(method === 'bank' ? 'تم إنشاء الطلب. سيتم مراجعة الإيصال من قبل الأدمن' : 'تم إنشاء الطلب، سيتم التحقق تلقائياً');
-    closeModal();
+    if (method === 'bank') {
+      toast('تم إنشاء الطلب. سيتم مراجعة الإيصال من قبل الأدمن');
+      window.location.href = '/orders.html';
+    } else {
+      currentOrderId = res.orderId;
+      currentMethod = method;
+      let address = method === 'trx' ? 'TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L' : '0x1b90069d9503e1931d30a8884080cdf16bd0cded';
+      alert(`✅ تم إنشاء الطلب رقم ${currentOrderId}\n\nأرسل ${amount} ${method.toUpperCase()} إلى المحفظة:\n${address}\n\n📌 مهم: اكتب رقم الطلب ${currentOrderId} في خانة المذكرة (Memo).\n\nبعد الإرسال اضغط "تحققت من الدفع"`);
+      // تغيير الزر إلى تحققت
+      const confirmBtn = document.getElementById('confirmPayBtn');
+      confirmBtn.innerHTML = '🔍 تحققت من الدفع';
+      confirmBtn.onclick = () => verifyPayment(currentOrderId, currentMethod);
+      closeModal(); // نغلق المودال بعد العرض
+    }
+  } else {
+    toast('خطأ: ' + res.error);
+  }
+}
+
+async function verifyPayment(orderId, method) {
+  toast('جاري التحقق من الدفع... يرجى الانتظار');
+  const res = await api('/api/verify-payment', 'POST', { orderId, method });
+  if (res.success && res.approved) {
+    toast('✅ تم تأكيد الدفع! يمكنك تحميل الكتاب من صفحة طلباتي');
     window.location.href = '/orders.html';
   } else {
-    toast('حدث خطأ: ' + res.error);
+    toast('❌ لم يتم العثور على الدفع. تأكد من إرسال المبلغ الصحيح وكتابة رقم الطلب في المذكرة (Memo).');
   }
 }
 </script>
