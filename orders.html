@@ -14,28 +14,12 @@
     <a href="/books.html">الكتب</a>
   </nav>
 </header>
-
 <div class="container">
   <h2>طلباتي</h2>
   <div id="ordersList"></div>
 </div>
-
-<!-- مودال رفع الإيصال -->
-<div class="modal" id="proofModal">
-  <div class="modal-content">
-    <h3>رفع إثبات الدفع</h3>
-    <input type="text" id="proofNumber" placeholder="رقم الإيصال / معرف التحويل">
-    <button class="btn" onclick="submitProof()">إرسال</button>
-    <button class="btn" style="background:#ccc; color:#333;" onclick="closeProofModal()">إلغاء</button>
-  </div>
-</div>
-
 <script src="/script.js"></script>
 <script>
-let currentOrderId = null;
-
-loadOrders();
-
 async function loadOrders() {
   const res = await api('/api/orders');
   if (!res.success) return;
@@ -49,33 +33,34 @@ async function loadOrders() {
     <div class="card">
       <h3>${o.book_title}</h3>
       <p>الطريقة: ${o.method} | المبلغ: ${o.amount} $</p>
-      <p>الحالة: <span class="status ${o.status}">${o.status === 'pending' ? 'قيد الانتظار' : (o.status === 'pending_review' ? 'مراجعة' : (o.status === 'approved' ? 'تمت الموافقة' : 'مرفوض'))}</span></p>
+      <p>الحالة: <span class="status ${o.status}">${statusText(o.status)}</span></p>
       ${o.status === 'approved' && o.file_url ? `<a href="${o.file_url}" target="_blank" class="btn">تحميل الكتاب</a>` : ''}
-      ${(o.status === 'pending' && o.method === 'bank') ? `<button class="btn" onclick="openProofModal(${o.id})">رفع إيصال الدفع</button>` : ''}
-      ${(o.status === 'pending' && (o.method === 'trx' || o.method === 'usdt')) ? '<p>جاري التحقق التلقائي...</p>' : ''}
+      ${o.status === 'pending' && o.method === 'bank' ? `<button class="btn" onclick="submitProofAgain(${o.id})">رفع إيصال الدفع</button>` : ''}
     </div>
   `).join('');
 }
 
-function openProofModal(id) {
-  currentOrderId = id;
-  document.getElementById('proofModal').classList.add('active');
+function statusText(status) {
+  if (status === 'pending') return 'قيد الانتظار';
+  if (status === 'pending_review') return 'جاري المراجعة';
+  if (status === 'approved') return 'تمت الموافقة';
+  if (status === 'rejected') return 'مرفوض';
+  return status;
 }
-function closeProofModal() {
-  document.getElementById('proofModal').classList.remove('active');
-}
-async function submitProof() {
-  const proof = document.getElementById('proofNumber').value;
-  if (!proof) return toast('أدخل رقم الإيصال');
-  const res = await api('/api/submit-proof', 'POST', { orderId: currentOrderId, proof });
+
+async function submitProofAgain(orderId) {
+  const proof = prompt('أدخل رقم الإيصال / معرف التحويل:');
+  if (!proof) return;
+  const res = await api('/api/submit-proof', 'POST', { orderId, proof });
   if (res.success) {
-    toast('تم رفع الإيصال، سيتم مراجعته من قبل الأدمن');
-    closeProofModal();
+    toast('تم رفع الإيصال، سيتم مراجعته');
     loadOrders();
   } else {
     toast('خطأ: ' + res.error);
   }
 }
+
+loadOrders();
 </script>
 </body>
-</html> 
+</html>
