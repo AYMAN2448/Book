@@ -27,7 +27,7 @@
 
 <div class="container">
   <h1 style="text-align:center;">مرحباً بك في مكتبة الكتب الرقمية</h1>
-  <p style="text-align:center;">اختر كتابك المفضل وادفع بسهولة (عملات رقمية أو تحويل بنكي)</p>
+  <p style="text-align:center;">اختر كتابك المفضل وادفع بسهولة (عملات رقمية أو تحويل بنكك او كاشي )</p>
   <div class="books-grid" id="homeBooksGrid">جاري تحميل الكتب...</div>
 </div>
 
@@ -38,10 +38,10 @@
     <select id="payMethod">
       <option value="trx">TRX (تحقق تلقائي)</option>
       <option value="usdt">USDT (تحقق تلقائي)</option>
-      <option value="bank">تحويل بنكي (يدوي)</option>
+      <option value="bank">تحويل بنكك او كاشي (يدوي)</option>
     </select>
     <p>سعر الكتاب: <span id="bookPrice"></span></p>
-    <div id="bankProofDiv" style="display:none;"><label>رقم الإيصال / معرف التحويل:</label><input type="text" id="bankProof" placeholder="أدخل رقم الإيصال"></div>
+    <div id="bankProofDiv" style="display:none;"><label>رقم الإيصال / رقم العملية :</label><input type="text" id="bankProof" placeholder="أدخل رقم الإيصال"></div>
     <div id="autoPaymentInfo" style="display:none;"></div>
     <button class="btn" id="confirmPayBtn" onclick="createOrder()">تأكيد الطلب</button>
     <button class="btn" style="background:#ccc; color:#333;" onclick="closeModal()">إلغاء</button>
@@ -50,7 +50,7 @@
 
 <!-- زر الدعم -->
 <div class="support-float">
-  <div class="support-btn" id="supportBtn" onclick="toggleSupportMenu()">💬</div>
+  <div class="support-btn" id="supportBtn" onclick="toggleSupportMenu()"> للبلاغ او الاستفسار💬</div>
   <div class="support-menu" id="supportMenu">
     <a href="https://t.me/username" target="_blank">📱 تيليجرام</a>
     <a href="https://m.me/pageusername" target="_blank">📘 فيسبوك</a>
@@ -65,8 +65,8 @@ const fallbackBooks = [
   { id: 2, title: "تعلم JavaScript", price: 7, cover: "https://via.placeholder.com/200x280", file_url: "#" }
 ];
 
-const LOCAL_CURRENCY_RATE = 530;
-const LOCAL_CURRENCY_NAME = "ريال يمني";
+const LOCAL_CURRENCY_RATE = 4000;
+const LOCAL_CURRENCY_NAME = "جنيه سوداني ";
 let selectedBook = null;
 let currentOrderId = null;
 let currentMethod = null;
@@ -172,7 +172,7 @@ async function createOrder() {
   });
   if (res.success) {
     if (method === 'bank') {
-      toast('تم إنشاء الطلب. سيتم مراجعة الإيصال');
+      toast('تم إنشاء الطلب. انظر إلى نافذه طلباتي سيتم مراجعة الإيصال');
       window.location.href = '/orders.html';
     } else {
       currentOrderId = res.orderId;
@@ -186,7 +186,7 @@ async function createOrder() {
           <span class="copy-address" onclick="copyToClipboard('${address}')">${address}</span>
           <button class="copy-btn" onclick="copyToClipboard('${address}')">📋 نسخ</button>
         </div>
-        <p>📌 اكتب رقم الطلب <strong>${currentOrderId}</strong> في المذكرة (Memo).</p>
+        <p>📌 اكتب رقم الطلب <strong>${currentOrderId}</strong> في اشعار التحويل (Memo).</p>
         <p>بعد الإرسال اضغط "تحققت من الدفع".</p>
       `;
       autoDiv.style.display = 'block';
