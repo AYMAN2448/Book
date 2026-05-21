@@ -26,6 +26,10 @@
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     direction: rtl;
   }
+  .discount-badge span {
+    font-size: 1.2rem;
+    display: block;
+  }
   .old-price {
     text-decoration: line-through;
     color: #999;
@@ -46,12 +50,13 @@
     <a href="/">الرئيسية</a>
     <a href="/books.html">الكتب</a>
     <a href="/orders.html">طلباتي</a>
+    <a href="/admin-login.html">الأدمن</a>
   </nav>
 </header>
 
 <div class="container">
   <h1 style="text-align:center;">مرحباً بك في مكتبة الكتب الرقمية</h1>
-  <p style="text-align:center;">اختر كتابك المفضل وادفع بسهولة (عملات رقمية أو تحويل بنكك او كاشي )</p>
+  <p style="text-align:center;">اختر كتابك المفضل وادفع بسهولة (عملات رقمية أو تحويل بنكي/كاشي)</p>
   <div class="grid" id="homeBooksGrid"></div>
 </div>
 
@@ -60,27 +65,34 @@
   <div class="modal-content">
     <h3>اختر طريقة الدفع</h3>
     <select id="payMethod">
-      <option value="bank">تحويل بنكك / كاشي (يدوي)</option> 
+      <option value="bank">تحويل بنكك / كاشي (يدوي)</option>
       <option value="trx">TRX (تحقق تلقائي)</option>
       <option value="usdt">USDT (تحقق تلقائي)</option>
+      
     </select>
     
     <div id="priceDisplay"></div>
 
     <div id="bankAccountInfo" style="display:none;">
       <div class="discount-badge" id="discountBadge" style="display:none;">
-        🎉 عرض خاص! خصم 50% على الدفع بالجنيه السوداني 🎉
+        🎉 عرض خاص! خصم 50% على الدفع بالعملة المحلية (ج.س) 🎉
       </div>
-      
       <div class="info-block">
-        <h4>📱 تحويل كاشي:</h4>
+        <h4>🏦 تحويل بنكك:</h4>
+        <p><strong>متوقف حاليا :</strong> 000000</p>
+        
+        <p><strong>تعليق:</strong>  اكتب في الاشعار   : <span id="bookTitlePlaceholder"></span> - رقم الطلب (سيظهر بعد التأكيد)</p>
+      </div>
+      <div class="info-block">
+        <h4>📱 تحويل كاشي (Cash):</h4>
         <p><strong>رقم الحساب:</strong> 401951393</p>
         <p><strong>اسم الحساب:</strong> لبني احمد سعيد</p>
+        <p><strong>ملاحظة:</strong> نفس رقم الحساب البنكي لكاشي</p>
       </div>
     </div>
 
     <div id="bankProofDiv" style="display:none;">
-      <label>رقم الإيصال / معرف العملية:</label>
+      <label>رقم الإيصال / معرف التحويل:</label>
       <input type="text" id="bankProof" placeholder="أدخل رقم الإيصال بعد التحويل">
     </div>
 
@@ -94,9 +106,10 @@
 <script src="/script.js"></script>
 <script>
 // ========== إعدادات سعر الصرف والخصم ==========
-const USD_TO_LOCAL = 4000;      // 1 دولار = 4000 عملة محلية
-const USD_TO_TRX = 6.7;         // 1 دولار = 6.7 TRX
-const DISCOUNT_RATE = 0.5;      // خصم 50% للدفع بالعملة المحلية
+const USD_TO_LOCAL = 4000;           // 1 دولار = 4000 جنيه سوداني
+const LOCAL_CURRENCY_NAME = "ج.س";   // اختصار الجنيه السوداني
+const USD_TO_TRX = 6.7;              // 1 دولار = 6.7 TRX
+const DISCOUNT_RATE = 0.5;           // خصم 50% للدفع بالعملة المحلية
 
 let selectedBook = null;
 let currentOrderId = null;
@@ -151,9 +164,12 @@ function updatePriceAndInfo(method) {
   if (method === 'bank') {
     const originalLocal = selectedBook.price * USD_TO_LOCAL;
     const discountedLocal = originalLocal * (1 - DISCOUNT_RATE);
+    // عرض السعر الأصلي مشطوباً والسعر بعد الخصم مع اختصار العملة
     priceDisplay.innerHTML = `
-      <div class="old-price">${originalLocal.toFixed(2)} عملة محلية</div>
-      <div class="new-price">${discountedLocal.toFixed(2)} عملة محلية (بعد الخصم 50%)</div>
+      <div style="margin:10px 0;">
+        <span class="old-price">${originalLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME}</span>
+        <span class="new-price">${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME} (بعد الخصم 50%)</span>
+      </div>
     `;
     discountBadge.style.display = 'block';
     bankAccountDiv.style.display = 'block';
@@ -195,12 +211,14 @@ function closeModal() {
 async function createOrder() {
   const method = document.getElementById('payMethod').value;
   const usdPrice = selectedBook.price;
+  let finalAmountUSD = usdPrice;
   let displayAmount = '';
 
   if (method === 'bank') {
-    const localPrice = usdPrice * USD_TO_LOCAL;
-    const discountedLocal = localPrice * (1 - DISCOUNT_RATE);
-    displayAmount = `${discountedLocal.toFixed(2)} عملة محلية (بعد الخصم 50%)`;
+    const originalLocal = usdPrice * USD_TO_LOCAL;
+    const discountedLocal = originalLocal * (1 - DISCOUNT_RATE);
+    displayAmount = `${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME} (بعد الخصم 50%)`;
+    finalAmountUSD = usdPrice; // نخزن السعر الأصلي بالدولار
   } else if (method === 'trx') {
     const trxAmount = usdPrice * USD_TO_TRX;
     displayAmount = `${trxAmount.toFixed(2)} TRX`;
@@ -217,7 +235,7 @@ async function createOrder() {
   const res = await api('/api/create-invoice', 'POST', {
     bookId: selectedBook.id,
     method,
-    amount: usdPrice,
+    amount: usdPrice,   // نخزن السعر بالدولار (بدون خصم) لتوحيد المرجع
     proof
   });
 
@@ -237,7 +255,7 @@ async function createOrder() {
           <span class="copy-address" onclick="copyToClipboard('${address}')">${address}</span>
           <button class="copy-btn" onclick="copyToClipboard('${address}')">📋 نسخ</button>
         </div>
-        <p>📌 اكتب رقم الطلب <strong>${currentOrderId}</strong> في الأشعار (Memo).</p>
+        <p>📌 اكتب رقم الطلب <strong>${currentOrderId}</strong> في المذكرة (Memo).</p>
         <p>بعد الإرسال اضغط "تحققت من الدفع".</p>
       `;
       autoDiv.style.display = 'block';
