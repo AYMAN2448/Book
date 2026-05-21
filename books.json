@@ -1,7 +1,9 @@
 [
   {
     "id": 1,
-    "title": "سجون المهد للكتاب د.عزام عبدالله ابراهيم ",
+    "title": "سجون المهد",
+    "author": "د. عزام عبدالله ابراهيم",
+    "description": " سجون المهد کتاب سيغير نظرتك لكل ما تعتقد أنك تعرفه عن التربية والطفولة و السودان. ",
     "price": 3,
     "cover": "https://i.imgur.com/0peOdC6.jpg",
     "file_url": "https://raw.githubusercontent.com/AYMAN2448/Book4ever_bot/main/sejonalmhd.pdf"
