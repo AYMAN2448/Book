@@ -1,176 +1,72 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>لوحة الأدمن</title>
-<style>
-body { font-family: Arial, sans-serif; background: #1a1a1a; color: #fff; padding: 20px; }
-.container { max-width: 900px; margin: auto; }
-.tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-.tab { flex: 1; padding: 12px; background: #2a2a2a; border: none; color: #fff; cursor: pointer; border-radius: 5px; }
-.tab.active { background: #4CAF50; }
-.tab-content { display: none; background: #2a2a2a; padding: 20px; border-radius: 10px; }
-.tab-content.active { display: block; }
-input, textarea, select { width: 100%; padding: 10px; margin: 8px 0; border: none; border-radius: 5px; background: #3a3a3a; color: #fff; }
-button { padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
-button.reject { background: #f44336; }
-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-th, td { padding: 10px; text-align: right; border-bottom: 1px solid #444; }
-th { background: #3a3a3a; }
-.msg { margin-top: 15px; text-align: center; }
-label { display: block; margin-top: 10px; color: #ccc; }
-.status-pending { color: orange; }
-.status-approved { color: #4CAF50; }
-.status-rejected { color: #f44336; }
-</style>
+<title>لوحة التحكم</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
 </head>
 <body>
+<header>
+  <h2>لوحة التحكم</h2>
+  <button class="btn" onclick="logout()" style="background:#ccc; color:#333;">خروج</button>
+</header>
 <div class="container">
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab('orders')">إدارة الطلبات</button>
-    <button class="tab" onclick="switchTab('upload')">رفع كتاب جديد</button>
-  </div>
-
-  <!-- تبويب الطلبات -->
-  <div id="orders" class="tab-content active">
-    <h2>طلبات الدفع المعلقة</h2>
-    <button onclick="loadOrders()">تحديث</button>
-    <table id="ordersTable">
-      <thead>
-        <tr>
-          <th>رقم الطلب</th>
-          <th>الكتاب</th>
-          <th>المبلغ</th>
-          <th>طريقة الدفع</th>
-          <th>رقم المعاملة</th>
-          <th>الحالة</th>
-          <th>إجراء</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <!-- تبويب رفع كتاب -->
-  <div id="upload" class="tab-content">
-    <h2>رفع كتاب جديد</h2>
-    <label>اسم الكتاب *</label>
-    <input type="text" id="title" required>
-    <label>الكاتب *</label>
-    <input type="text" id="author" required>
-    <label>الوصف *</label>
-    <textarea id="description" rows="3" required></textarea>
-    <label>السعر بالدولار *</label>
-    <input type="number" id="price" step="0.01" required>
-    <label>رابط ملف الكتاب PDF *</label>
-    <input type="url" id="file_url" required>
-    <label>رابط صورة الغلاف</label>
-    <input type="url" id="cover_url">
-    <label>التصنيف</label>
-    <input type="text" id="category">
-    <button onclick="uploadBook()">رفع الكتاب</button>
-    <div class="msg" id="msg"></div>
-  </div>
+  <h3>الطلبات المعلقة</h3>
+  <div id="ordersList"></div>
 </div>
-
 <script>
-function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  event.target.classList.add('active');
-  document.getElementById(tab).classList.add('active');
-  if(tab === 'orders') loadOrders();
-}
+const token = localStorage.getItem('admin_token');
+if (!token) location.href = '/admin-login.html';
 
 async function loadOrders() {
-  const tbody = document.querySelector('#ordersTable tbody');
-  tbody.innerHTML = '<tr><td colspan="7">جاري التحميل...</td></tr>';
-  
-  const res = await fetch('/api/admin/orders');
+  const res = await fetch('/api/admin-orders', {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
   const data = await res.json();
-  
-  if(!data.success) {
-    tbody.innerHTML = '<tr><td colspan="7">خطأ في التحميل</td></tr>';
+  if (!data.success) {
+    localStorage.removeItem('admin_token');
+    location.href = '/admin-login.html';
     return;
   }
-  
-  tbody.innerHTML = data.orders.map(o => `
-    <tr>
-      <td>#${o.id}</td>
-      <td>${o.book_title}</td>
-      <td>$${o.price}</td>
-      <td>${o.method}</td>
-      <td>${o.tx_number || '-'}</td>
-      <td class="status-${o.status}">${o.status}</td>
-      <td>
-        ${o.status === 'pending' ? `
-          <input type="text" id="tx-${o.id}" placeholder="رقم الإيصال" style="width:120px;display:inline-block;">
-          <button onclick="approveOrder(${o.id})">موافقة</button>
-          <button class="reject" onclick="rejectOrder(${o.id})">رفض</button>
-        ` : '-'}
-      </td>
-    </tr>
+  const list = document.getElementById('ordersList');
+  if (data.orders.length === 0) {
+    list.innerHTML = '<p>لا توجد طلبات معلقة</p>';
+    return;
+  }
+  list.innerHTML = data.orders.map(o => `
+    <div class="card">
+      <h4>${o.book_title}</h4>
+      <p>الطريقة: ${o.method} | المبلغ: ${o.amount} $</p>
+      <p>الحالة: ${o.status === 'pending_review' ? 'مراجعة' : 'قيد الانتظار'}</p>
+      ${o.proof ? `<p><strong>رقم الإيصال:</strong> ${o.proof}</p>` : ''}
+      <div style="margin-top:10px;">
+        <button class="btn" onclick="updateOrder(${o.id}, 'approve')">موافقة</button>
+        <button class="btn" onclick="updateOrder(${o.id}, 'reject')" style="background:#d63031;">رفض</button>
+      </div>
+    </div>
   `).join('');
 }
 
-async function approveOrder(orderId) {
-  const txNumber = document.getElementById(`tx-${orderId}`).value.trim();
-  if(!txNumber) {
-    alert('ادخل رقم المعاملة');
-    return;
+async function updateOrder(orderId, action) {
+  const res = await fetch('/api/admin-orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ orderId, action })
+  });
+  const data = await res.json();
+  if (data.success) {
+    alert('تم التحديث');
+    loadOrders();
+  } else {
+    alert('خطأ: ' + data.error);
   }
-  
-  const res = await fetch('/api/admin/approve', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({orderId, txNumber})
-  });
-  
-  const data = await res.json();
-  alert(data.success ? 'تمت الموافقة وإرسال الكتاب للزبون' : 'فشل: ' + data.error);
-  loadOrders();
 }
 
-async function rejectOrder(orderId) {
-  if(!confirm('متأكد من الرفض؟')) return;
-  const res = await fetch('/api/admin/reject', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({orderId})
-  });
-  const data = await res.json();
-  alert(data.success ? 'تم الرفض' : 'فشل: ' + data.error);
-  loadOrders();
+function logout() {
+  localStorage.removeItem('admin_token');
+  location.href = '/admin-login.html';
 }
-
-async function uploadBook() {
-  const msgDiv = document.getElementById('msg');
-  const book = {
-    title: document.getElementById('title').value.trim(),
-    author: document.getElementById('author').value.trim(),
-    description: document.getElementById('description').value.trim(),
-    price: parseFloat(document.getElementById('price').value),
-    file_url: document.getElementById('file_url').value.trim(),
-    cover_url: document.getElementById('cover_url').value.trim(),
-    category: document.getElementById('category').value.trim()
-  };
-
-  if (!book.title || !book.author || !book.description || !book.price || !book.file_url) {
-    msgDiv.innerHTML = '❌ املأ الحقول المطلوبة'; msgDiv.style.color = 'red'; return;
-  }
-
-  const res = await fetch('/api/add-book', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(book)
-  });
-  const data = await res.json();
-  msgDiv.innerHTML = data.success ? '✅ تم الرفع' : '❌ فشل: ' + data.error;
-  msgDiv.style.color = data.success ? 'green' : 'red';
-  if(data.success) document.querySelectorAll('input, textarea').forEach(el => el.value = '');
-}
-
 loadOrders();
 </script>
 </body>
