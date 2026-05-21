@@ -7,7 +7,7 @@ export async function onRequestGet({ request, env }) {
   const orders = await env.DB.prepare(
     `SELECT o.*, b.title as book_title
      FROM orders o
-     JOIN books b ON o.book_id = b.id
+     LEFT JOIN books b ON o.book_id = b.id
      WHERE o.status IN ('pending', 'pending_review')
      ORDER BY o.created_at DESC`
   ).all();
@@ -26,12 +26,11 @@ export async function onRequestPost({ request, env }) {
   if (!order) return Response.json({ success: false, error: 'الطلب غير موجود' });
 
   if (action === 'approve') {
-    // جلب رابط الكتاب من books.json
+    // جلب بيانات الكتاب من books.json
     const booksRes = await fetch('https://' + request.headers.get('host') + '/books.json');
     const books = await booksRes.json();
     const book = books.find(b => b.id == order.book_id);
     if (!book) return Response.json({ success: false, error: 'الكتاب غير موجود' });
-    // تحديث الحالة ورابط التحميل
     await env.DB.prepare(
       `UPDATE orders SET status = 'approved', file_url = ?, updated_at = ? WHERE id = ?`
     ).bind(book.file_url, Date.now(), orderId).run();
@@ -43,4 +42,4 @@ export async function onRequestPost({ request, env }) {
     return Response.json({ success: false, error: 'إجراء غير معروف' });
   }
   return Response.json({ success: true });
-}
+} 
