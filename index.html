@@ -15,6 +15,10 @@
   .discount-badge { background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; padding: 12px; border-radius: 12px; text-align: center; margin: 15px 0; font-weight: bold; }
   .old-price { text-decoration: line-through; color: #999; margin-left: 8px; }
   .new-price { color: #27ae60; font-weight: bold; font-size: 1.3rem; }
+  .card-buttons { display: flex; gap: 10px; margin-top: 10px; }
+  .card-buttons .btn { flex: 1; margin: 0; }
+  .share-btn { background: #4a6fa5; }
+  .share-btn:hover { background: #3a5a8a; }
 </style>
 </head>
 <body>
@@ -24,7 +28,7 @@
     <a href="/">الرئيسية</a>
     <a href="/books.html">الكتب</a>
     <a href="/orders.html">طلباتي</a>
-    
+    <a href="/admin-login.html">الأدمن</a>
   </nav>
 </header>
 
@@ -34,6 +38,7 @@
   <div class="grid" id="homeBooksGrid"></div>
 </div>
 
+<!-- مودال الدفع -->
 <div class="modal" id="payModal">
   <div class="modal-content">
     <h3>اختر طريقة الدفع</h3>
@@ -42,13 +47,9 @@
       <option value="usdt">USDT (تحقق تلقائي)</option>
       <option value="trx">TRX (تحقق تلقائي)</option>
     </select>
-    
     <div id="priceDisplay"></div>
-
     <div id="bankAccountInfo" style="display:none;">
-      <div class="discount-badge" id="discountBadge">
-        🎉 عرض خاص! خصم 50% على الدفع بالعملة المحلية (ج.س) 🎉
-      </div>
+      <div class="discount-badge" id="discountBadge">🎉 عرض خاص! خصم 50% على الدفع بالعملة المحلية (ج.س) 🎉</div>
       <div class="info-block">
         <h4>📱 تحويل كاشي (Cash):</h4>
         <p><strong>رقم الحساب:</strong> 401951393</p>
@@ -56,14 +57,11 @@
         <p><strong>ملاحظة:</strong> اذكر رقم الطلب عند الإرسال</p>
       </div>
     </div>
-
     <div id="bankProofDiv" style="display:none;">
       <label>رقم الإيصال / معرف التحويل:</label>
       <input type="text" id="bankProof" placeholder="أدخل رقم الإيصال بعد التحويل">
     </div>
-
     <div id="autoPaymentInfo" style="display:none; background:#f0f0f0; padding:10px; border-radius:8px; margin:10px 0;"></div>
-
     <button class="btn" id="confirmPayBtn" onclick="createOrder()">تأكيد الطلب</button>
     <button class="btn" style="background:#ccc; color:#333;" onclick="closeModal()">إلغاء</button>
   </div>
@@ -75,9 +73,7 @@
 const USD_TO_LOCAL = 4000;
 const LOCAL_CURRENCY_NAME = "ج.س";
 const USD_TO_TRX = 6.7;
-const DISCOUNT_RATE = 0.5;
-
-// العنوان الموحد لاستقبال TRX و USDT (TRC-20)
+const DISCOUNT_RATE = 0.3;
 const CRYPTO_ADDRESS = "TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L";
 
 let selectedBook = null;
@@ -99,6 +95,21 @@ function showToast(msg) {
   setTimeout(() => toast.style.display = 'none', 2000);
 }
 
+// دالة مشاركة الكتاب (ترسل رابط صفحة الكتاب المنفرد)
+function shareBook(bookId, bookTitle, bookPrice) {
+  const url = `${window.location.origin}/book?id=${bookId}`;
+  const shareText = `📚 ${bookTitle} - السعر: ${bookPrice} $\nلشراء الكتاب، افتح الرابط: ${url}`;
+  if (navigator.share) {
+    navigator.share({
+      title: bookTitle,
+      text: shareText,
+      url: url
+    }).catch(e => console.log(e));
+  } else {
+    navigator.clipboard.writeText(shareText).then(() => showToast('📋 تم نسخ رابط الكتاب'));
+  }
+}
+
 fetch('/books.json')
   .then(r => r.json())
   .then(books => {
@@ -109,7 +120,10 @@ fetch('/books.json')
         <img src="${book.cover}" style="width:100%; border-radius:8px;">
         <h3>${book.title}</h3>
         <p>السعر: ${book.price} $</p>
-        <button class="btn" onclick='openModal(${JSON.stringify(book).replace(/"/g, '&quot;')})'>شراء</button>
+        <div class="card-buttons">
+          <button class="btn" onclick='openModal(${JSON.stringify(book).replace(/"/g, '&quot;')})'>شراء</button>
+          <button class="btn share-btn" onclick="shareBook(${book.id}, '${book.title.replace(/'/g, "\\'")}', ${book.price})">📤 مشاركة</button>
+        </div>
       </div>
     `).join('');
   }).catch(e => console.error(e));
@@ -158,7 +172,6 @@ function updatePriceAndInfo(method) {
     bankProofDiv.style.display = 'none';
     autoDiv.style.display = 'none';
   }
-
   const btn = document.getElementById('confirmPayBtn');
   btn.innerHTML = 'تأكيد الطلب';
   btn.onclick = createOrder;
@@ -244,7 +257,6 @@ async function verifyPayment(orderId, method, usdPrice) {
   }
   try {
     const res = await api('/api/verify-payment', 'POST', { orderId, method, expectedAmount });
-    console.log('Verify response:', res);
     if (res.success && res.approved === true) {
       showToast('✅ تم تأكيد الدفع! يمكنك التحميل من طلباتي');
       closeModal();
@@ -254,7 +266,7 @@ async function verifyPayment(orderId, method, usdPrice) {
       showToast('❌ ' + errorMsg);
     }
   } catch (err) {
-    console.error('Verify payment error:', err);
+    console.error(err);
     showToast('⚠️ خطأ في الاتصال بالخادم: ' + err.message);
   }
 }
