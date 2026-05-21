@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin-login.html
+Disallow: /admin.html
+Disallow: /api/
+Disallow: /orders.html
+Disallow: /book?id=*
+Sitemap: https://book-2ws.pages.dev/sitemap.xml
