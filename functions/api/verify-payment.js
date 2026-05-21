@@ -2,47 +2,84 @@ export async function onRequestPost({ request, env }) {
   try {
     const { orderId, method } = await request.json();
     const sessionId = request.headers.get('X-Session-Id');
-    const order = await env.DB.prepare(`SELECT * FROM orders WHERE id = ? AND session_id = ?`).bind(orderId, sessionId).first();
-    if (!order) return Response.json({ success: false, error: 'الطلب غير موجود' });
-    if (order.status !== 'pending') return Response.json({ success: false, error: 'تمت معالجته مسبقاً' });
+    if (!sessionId) return Response.json({ success: false, error: 'لا توجد جلسة' });
 
-    const address = method === 'trx' ? 'TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L' : '0x1b90069d9503e1931d30a8884080cdf16bd0cded';
-    const expectedAmount = order.amount;
+    // جلب الطلب من قاعدة البيانات
+    const order = await env.DB.prepare(
+      `SELECT * FROM orders WHERE id = ? AND session_id = ?`
+    ).bind(orderId, sessionId).first();
+    if (!order) return Response.json({ success: false, error: 'الطلب غير موجود' });
+    if (order.status !== 'pending') return Response.json({ success: false, error: 'تمت معالجة الطلب مسبقاً' });
+
     let verified = false;
+    let txHash = null;
+    const expectedAmount = order.amount;
+
+    // عناوين المحافظ (يجب أن تطابق الظاهرة للمستخدم)
+    const trxAddress = 'TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L';
+    const usdtAddress = '0x1b90069d9503e1931d30a8884080cdf16bd0cded';
+    const usdtContract = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+
+    const apiKey = env.TRONGRID_API_KEY || '';
+
     if (method === 'trx') {
-      const url = `https://api.trongrid.io/v1/accounts/${address}/transactions?limit=20`;
-      const res = await fetch(url);
-      const data = await res.json();
-      for (let tx of data.data || []) {
-        if (tx.raw_data?.contract?.[0]?.parameter?.value?.amount / 1e6 >= expectedAmount) {
-          verified = true;
-          break;
+      const url = `https://api.trongrid.io/v1/accounts/${trxAddress}/transactions?limit=20&sort=-timestamp`;
+      const response = await fetch(url, {
+        headers: apiKey ? { 'TRON-PRO-API-KEY': apiKey } : {}
+      });
+      const data = await response.json();
+      for (const tx of data.data || []) {
+        const contract = tx.raw_data?.contract[0];
+        if (contract?.type === 'TransferContract') {
+          const toAddress = contract.parameter?.value?.to_address;
+          // تحويل عنوان الـ hex إلى base58 إذا لزم (تبسيط: نقارن النص)
+          if (toAddress && (toAddress === trxAddress || toAddress === trxAddress.toLowerCase())) {
+            const amountTRX = contract.parameter.value.amount / 1e6;
+            const memo = tx.raw_data?.data ? Buffer.from(tx.raw_data.data, 'hex').toString() : '';
+            if (amountTRX >= expectedAmount && (memo.includes(orderId.toString()) || memo.includes(sessionId))) {
+              verified = true;
+              txHash = tx.txID;
+              break;
+            }
+          }
         }
       }
-    } else if (method === 'usdt') {
-      // مبسط، يمكنك استدعاء TronGrid للـ USDT
-      const url = `https://api.trongrid.io/v1/accounts/${address}/transactions/trc20?limit=20&contract_address=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t`;
-      const res = await fetch(url);
-      const data = await res.json();
-      for (let tx of data.data || []) {
-        if (tx.to === address.toLowerCase() && parseFloat(tx.value) >= expectedAmount) {
-          verified = true;
-          break;
+    } 
+    else if (method === 'usdt') {
+      const url = `https://api.trongrid.io/v1/accounts/${usdtAddress}/transactions/trc20?limit=20&contract_address=${usdtContract}`;
+      const response = await fetch(url, {
+        headers: apiKey ? { 'TRON-PRO-API-KEY': apiKey } : {}
+      });
+      const data = await response.json();
+      for (const tx of data.data || []) {
+        if (tx.to && tx.to.toLowerCase() === usdtAddress.toLowerCase() && tx.token_info?.address?.toLowerCase() === usdtContract.toLowerCase()) {
+          const amountUSDT = parseInt(tx.value) / 1e6;
+          if (amountUSDT >= expectedAmount) {
+            verified = true;
+            txHash = tx.transaction_id;
+            break;
+          }
         }
       }
     }
+
     if (verified) {
+      // جلب رابط الكتاب من books.json
       const booksRes = await fetch('https://' + request.headers.get('host') + '/books.json');
       const books = await booksRes.json();
       const book = books.find(b => b.id == order.book_id);
+      if (!book) return Response.json({ success: false, error: 'الكتاب غير موجود' });
+
       await env.DB.prepare(
-        `UPDATE orders SET status = 'approved', file_url = ?, updated_at = ? WHERE id = ?`
-      ).bind(book.file_url, Date.now(), orderId).run();
+        `UPDATE orders SET status = 'approved', file_url = ?, tx_hash = ?, updated_at = ? WHERE id = ?`
+      ).bind(book.file_url, txHash, Date.now(), orderId).run();
+
       return Response.json({ success: true, approved: true });
     } else {
-      return Response.json({ success: false, error: 'لم يتم العثور على الدفع' });
+      return Response.json({ success: false, error: 'لم يتم العثور على دفعة مطابقة', approved: false });
     }
   } catch (e) {
+    console.error(e);
     return Response.json({ success: false, error: e.message }, { status: 500 });
   }
 } 
