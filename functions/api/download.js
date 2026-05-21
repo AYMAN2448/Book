@@ -15,10 +15,10 @@ export async function onRequestGet({ request, env }) {
     const book = books.find(b => b.id == order.book_id);
     if (!book) return new Response('الكتاب غير موجود', { status: 404 });
     
-    // اختياري: منع التحميل أكثر من مرة (حذف التوكن بعد الاستخدام)
+    // حذف التوكن بعد الاستخدام (مرة واحدة)
     await env.DB.prepare(`UPDATE orders SET download_token = NULL, token_expires_at = NULL WHERE id = ?`).bind(order.id).run();
     
-    // إعادة توجيه إلى رابط الملف (مع هيدرات تمنع التخزين المؤقت)
+    // إعادة توجيه إلى رابط الملف مع منع التخزين المؤقت
     return new Response(null, {
         status: 302,
         headers: {
