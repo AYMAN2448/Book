@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>البحوث العلمية - مكتبة الكتب</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  /* إضافات خاصة بالبحوث */
+  .research-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  .search-container {
+    margin: 20px 0;
+    text-align: center;
+  }
+  #searchResearch {
+    width: 100%;
+    max-width: 400px;
+    padding: 12px 20px;
+    border: 2px solid #ddd;
+    border-radius: 30px;
+    font-size: 16px;
+    font-family: 'Cairo', sans-serif;
+  }
+  .research-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 25px;
+    margin-top: 30px;
+  }
+  .research-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+  }
+  .research-card:hover {
+    transform: translateY(-2px);
+  }
+  .research-card img {
+    width: 100%;
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+  .research-card h3 {
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+  }
+  .research-field {
+    color: #e94560;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+  .research-author {
+    color: #555;
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+  }
+  .research-price {
+    font-weight: bold;
+    margin: 10px 0;
+  }
+  .no-results {
+    text-align: center;
+    padding: 40px;
+    font-size: 18px;
+    color: #999;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h2>مكتبة الكتب</h2>
+  <nav>
+    <a href="/">الرئيسية</a>
+    <a href="/books.html">الكتب</a>
+    <a href="/research.html">بحوث علمية</a>
+    <a href="/orders.html">طلباتي</a>
+    <a href="/admin-login.html">الأدمن</a>
+  </nav>
+</header>
+
+<div class="research-container">
+  <h2>البحوث العلمية الجاهزة</h2>
+  <p style="text-align:center;">أبحاث في مختلف التخصصات (الاقتصاد، التقنية، العلوم الصحية، وغيرها)</p>
+  
+  <div class="search-container">
+    <input type="text" id="searchResearch" placeholder="🔍 ابحث عن بحث (عنوان، تخصص، مؤلف)...">
+  </div>
+  
+  <div class="research-grid" id="researchGrid"></div>
+  <div id="noResearchMsg" class="no-results" style="display:none;">لا توجد بحوث تطابق بحثك</div>
+</div>
+
+<!-- مودال الدفع (نفس الموجود في الكتب، مع إضافة method='research' لكن نفس الوظائف) -->
+<div class="modal" id="payModal">
+  <div class="modal-content">
+    <h3>اختر طريقة الدفع</h3>
+    <select id="payMethod">
+      <option value="bank">تحويل كاشي (يدوي) - عملة محلية</option>
+      <option value="usdt">USDT (تحقق تلقائي)</option>
+      <option value="trx">TRX (تحقق تلقائي)</option>
+    </select>
+    <div id="priceDisplay"></div>
+    <div id="bankAccountInfo" style="display:none;">
+      <div class="discount-badge" id="discountBadge">🎉 عرض خاص! خصم 50% على الدفع بالعملة المحلية (ج.س) 🎉</div>
+      <div class="info-block">
+        <h4>📱 تحويل كاشي (Cash):</h4>
+        <p><strong>رقم الحساب:</strong> 401951393</p>
+        <p><strong>اسم صاحب الحساب:</strong> لبني احمد سعيد</p>
+        <p><strong>ملاحظة:</strong> اذكر رقم الطلب عند الإرسال</p>
+      </div>
+    </div>
+    <div id="bankProofDiv" style="display:none;">
+      <label>رقم الإيصال / معرف التحويل:</label>
+      <input type="text" id="bankProof" placeholder="أدخل رقم الإيصال بعد التحويل">
+    </div>
+    <div id="autoPaymentInfo" style="display:none; background:#f0f0f0; padding:10px; border-radius:8px; margin:10px 0;"></div>
+    <button class="btn" id="confirmPayBtn" onclick="createOrder()">تأكيد الطلب</button>
+    <button class="btn" style="background:#ccc; color:#333;" onclick="closeModal()">إلغاء</button>
+  </div>
+</div>
+
+<script src="/script.js"></script>
+<script>
+// إعدادات سعر الصرف والخصم (نفس القيم)
+const USD_TO_LOCAL = 4000;
+const LOCAL_CURRENCY_NAME = "ج.س";
+const USD_TO_TRX = 6.7;
+const DISCOUNT_RATE = 0.5;
+const CRYPTO_ADDRESS = "TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L";
+
+let selectedResearch = null;
+let currentOrderId = null;
+let currentMethod = null;
+let allResearch = [];
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => showToast('✅ تم نسخ العنوان')).catch(() => showToast('❌ فشل النسخ'));
+}
+function showToast(msg) {
+  let toast = document.querySelector('.toast-msg');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.className = 'toast-msg';
+    document.body.appendChild(toast);
+  }
+  toast.innerText = msg;
+  toast.style.display = 'block';
+  setTimeout(() => toast.style.display = 'none', 2000);
+}
+
+function renderResearch(researchArray) {
+  const grid = document.getElementById('researchGrid');
+  const noMsg = document.getElementById('noResearchMsg');
+  if (!researchArray.length) {
+    grid.innerHTML = '';
+    noMsg.style.display = 'block';
+    return;
+  }
+  noMsg.style.display = 'none';
+  grid.innerHTML = researchArray.map(r => `
+    <div class="research-card">
+      <img src="${r.cover}" alt="${r.title}">
+      <h3>${r.title}</h3>
+      <div class="research-field">📚 التخصص: ${r.field}</div>
+      <div class="research-author">✍️ ${r.author}</div>
+      <p class="research-price">💰 السعر: ${r.price} $</p>
+      <button class="btn" onclick='openModal(${JSON.stringify(r).replace(/"/g, '&quot;')})'>شراء البحث</button>
+    </div>
+  `).join('');
+}
+
+function filterResearch() {
+  const query = document.getElementById('searchResearch').value.trim().toLowerCase();
+  if (!query) return renderResearch(allResearch);
+  const filtered = allResearch.filter(r => 
+    r.title.toLowerCase().includes(query) ||
+    r.field.toLowerCase().includes(query) ||
+    r.author.toLowerCase().includes(query)
+  );
+  renderResearch(filtered);
+}
+
+// تحميل البحوث من research.json
+fetch('/research.json')
+  .then(res => res.json())
+  .then(data => {
+    allResearch = data;
+    renderResearch(allResearch);
+    document.getElementById('searchResearch').addEventListener('input', filterResearch);
+  })
+  .catch(err => {
+    console.error('خطأ في تحميل research.json', err);
+    document.getElementById('researchGrid').innerHTML = '<div class="no-results">حدث خطأ في تحميل البحوث</div>';
+  });
+
+// دوال الدفع (مطابقة لنظام الكتب مع تعديل اسم المنتج)
+function openModal(research) {
+  selectedResearch = research;
+  const method = document.getElementById('payMethod').value;
+  updatePriceAndInfo(method);
+  document.getElementById('payModal').classList.add('active');
+  currentOrderId = null;
+}
+
+function updatePriceAndInfo(method) {
+  const priceDisplay = document.getElementById('priceDisplay');
+  const discountBadge = document.getElementById('discountBadge');
+  const bankAccountDiv = document.getElementById('bankAccountInfo');
+  const bankProofDiv = document.getElementById('bankProofDiv');
+  const autoDiv = document.getElementById('autoPaymentInfo');
+
+  if (method === 'bank') {
+    const originalLocal = selectedResearch.price * USD_TO_LOCAL;
+    const discountedLocal = originalLocal * (1 - DISCOUNT_RATE);
+    priceDisplay.innerHTML = `
+      <div style="margin:10px 0;">
+        <span class="old-price">${originalLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME}</span>
+        <span class="new-price">${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME} (بعد الخصم 50%)</span>
+      </div>
+    `;
+    discountBadge.style.display = 'block';
+    bankAccountDiv.style.display = 'block';
+    bankProofDiv.style.display = 'block';
+    autoDiv.style.display = 'none';
+  } 
+  else if (method === 'usdt') {
+    priceDisplay.innerHTML = `<div class="new-price">${selectedResearch.price} USDT (بدون خصم)</div>`;
+    discountBadge.style.display = 'none';
+    bankAccountDiv.style.display = 'none';
+    bankProofDiv.style.display = 'none';
+    autoDiv.style.display = 'none';
+  }
+  else if (method === 'trx') {
+    const trxAmount = selectedResearch.price * USD_TO_TRX;
+    priceDisplay.innerHTML = `<div class="new-price">${trxAmount.toFixed(2)} TRX (بدون خصم)</div>`;
+    discountBadge.style.display = 'none';
+    bankAccountDiv.style.display = 'none';
+    bankProofDiv.style.display = 'none';
+    autoDiv.style.display = 'none';
+  }
+  const btn = document.getElementById('confirmPayBtn');
+  btn.innerHTML = 'تأكيد الطلب';
+  btn.onclick = createOrder;
+}
+
+document.getElementById('payMethod').addEventListener('change', (e) => {
+  if (!selectedResearch) return;
+  updatePriceAndInfo(e.target.value);
+});
+
+function closeModal() {
+  document.getElementById('payModal').classList.remove('active');
+  document.getElementById('autoPaymentInfo').style.display = 'none';
+  document.getElementById('bankAccountInfo').style.display = 'none';
+}
+
+async function createOrder() {
+  const method = document.getElementById('payMethod').value;
+  const usdPrice = selectedResearch.price;
+  let displayAmount = '';
+
+  if (method === 'bank') {
+    const discountedLocal = (usdPrice * USD_TO_LOCAL) * (1 - DISCOUNT_RATE);
+    displayAmount = `${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME} (بعد الخصم 50%)`;
+  } else if (method === 'trx') {
+    displayAmount = `${(usdPrice * USD_TO_TRX).toFixed(2)} TRX`;
+  } else if (method === 'usdt') {
+    displayAmount = `${usdPrice} USDT`;
+  }
+
+  let proof = null;
+  if (method === 'bank') {
+    proof = document.getElementById('bankProof').value.trim();
+    if (!proof) return showToast('يرجى إدخال رقم الإيصال بعد التحويل');
+  }
+
+  const res = await api('/api/create-invoice', 'POST', {
+    bookId: selectedResearch.id,
+    method,
+    amount: usdPrice,
+    proof
+  });
+
+  if (res.success) {
+    if (method === 'bank') {
+      alert(`✅ تم إنشاء طلب البحث رقم: ${res.orderId}\nالمبلغ المطلوب: ${displayAmount}\n\n📌 استخدم هذا الرقم عند التحويل.\nبعد التحويل، سجل رقم الإيصال في حقل الإثبات.`);
+      window.location.href = '/orders.html';
+    } else {
+      currentOrderId = res.orderId;
+      currentMethod = method;
+      const address = CRYPTO_ADDRESS;
+      const autoDiv = document.getElementById('autoPaymentInfo');
+      autoDiv.innerHTML = `
+        <p><strong>✅ رقم الطلب:</strong> ${currentOrderId}</p>
+        <p>أرسل <strong>${displayAmount}</strong> إلى العنوان التالي:</p>
+        <div class="copy-container">
+          <span class="copy-address" onclick="copyToClipboard('${address}')">${address}</span>
+          <button class="copy-btn" onclick="copyToClipboard('${address}')">📋 نسخ</button>
+        </div>
+        <p>📌 اكتب رقم الطلب <strong>${currentOrderId}</strong> في المذكرة (Memo).</p>
+        <p>بعد الإرسال اضغط "تحققت من الدفع".</p>
+      `;
+      autoDiv.style.display = 'block';
+      document.getElementById('payMethod').style.display = 'none';
+      document.getElementById('bankProofDiv').style.display = 'none';
+      document.getElementById('bankAccountInfo').style.display = 'none';
+      document.querySelector('#payModal .modal-content p:first-of-type').style.display = 'none';
+      const btn = document.getElementById('confirmPayBtn');
+      btn.innerHTML = '🔍 تحققت من الدفع';
+      btn.onclick = () => verifyPayment(currentOrderId, currentMethod, usdPrice);
+      alert(`✅ تم إنشاء طلب البحث رقم: ${currentOrderId}\nالمبلغ المطلوب: ${displayAmount}\nبعد الإرسال اضغط "تحققت من الدفع".`);
+    }
+  } else {
+    showToast('خطأ: ' + res.error);
+  }
+}
+
+async function verifyPayment(orderId, method, usdPrice) {
+  showToast('جاري التحقق...');
+  let expectedAmount = usdPrice;
+  if (method === 'trx') {
+    expectedAmount = usdPrice * USD_TO_TRX;
+  }
+  try {
+    const res = await api('/api/verify-payment', 'POST', { orderId, method, expectedAmount });
+    if (res.success && res.approved === true) {
+      showToast('✅ تم تأكيد الدفع! يمكنك تحميل البحث من صفحة طلباتي');
+      closeModal();
+      window.location.href = '/orders.html';
+    } else {
+      let errorMsg = res.error || 'لم يتم العثور على الدفع. تأكد من المبلغ والمذكرة.';
+      showToast('❌ ' + errorMsg);
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('⚠️ خطأ في الاتصال بالخادم: ' + err.message);
+  }
+}
+</script>
+</body>
+</html>
