@@ -4,27 +4,32 @@ export async function onRequestPost({ request, env }) {
     const sessionId = request.headers.get('X-Session-Id');
     const order = await env.DB.prepare(`SELECT * FROM orders WHERE id = ? AND session_id = ?`).bind(orderId, sessionId).first();
     if (!order) return Response.json({ success: false, error: 'الطلب غير موجود' });
-
     if (order.status !== 'pending') return Response.json({ success: false, error: 'تمت معالجته مسبقاً' });
 
-    // عنوان المحفظة والمبلغ المطلوب
     const address = method === 'trx' ? 'TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L' : '0x1b90069d9503e1931d30a8884080cdf16bd0cded';
     const expectedAmount = order.amount;
-    // استدعاء TronGrid API للتحقق (هنا مثال بسيط)
     let verified = false;
     if (method === 'trx') {
-      const url = `https://api.trongrid.io/v1/accounts/${address}/transactions?limit=10`;
+      const url = `https://api.trongrid.io/v1/accounts/${address}/transactions?limit=20`;
       const res = await fetch(url);
       const data = await res.json();
-      // البحث عن معاملة بنفس المبلغ والمذكرة (مذكرة تحتوي على sessionId)
       for (let tx of data.data || []) {
-        if (tx.raw_data.contract[0].parameter.value.amount / 1e6 >= expectedAmount) {
+        if (tx.raw_data?.contract?.[0]?.parameter?.value?.amount / 1e6 >= expectedAmount) {
           verified = true;
           break;
         }
       }
     } else if (method === 'usdt') {
-      // مشابه لـ TRC20
+      // مبسط، يمكنك استدعاء TronGrid للـ USDT
+      const url = `https://api.trongrid.io/v1/accounts/${address}/transactions/trc20?limit=20&contract_address=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t`;
+      const res = await fetch(url);
+      const data = await res.json();
+      for (let tx of data.data || []) {
+        if (tx.to === address.toLowerCase() && parseFloat(tx.value) >= expectedAmount) {
+          verified = true;
+          break;
+        }
+      }
     }
     if (verified) {
       const booksRes = await fetch('https://' + request.headers.get('host') + '/books.json');
@@ -40,4 +45,4 @@ export async function onRequestPost({ request, env }) {
   } catch (e) {
     return Response.json({ success: false, error: e.message }, { status: 500 });
   }
-}
+} 
