@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "title": "الخيميائي",
+    "author": "باولو كويلو",
+    "price": 5,
+    "image": "https://via.placeholder.com/200x300.png?text=Book+1"
+  },
+  {
+    "id": 2,
+    "title": "1984",
+    "author": "جورج أورويل",
+    "price": 4,
+    "image": "https://via.placeholder.com/200x300.png?text=Book+2"
+  },
+  {
+    "id": 3,
+    "title": "الأمير الصغير",
+    "author": "أنطوان دو سانت إكزوبيري",
+    "price": 3,
+    "image": "https://via.placeholder.com/200x300.png?text=Book+3"
+  }
+]
