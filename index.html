@@ -5,15 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>مكتبة تيليجرام</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
 <script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
-
-const SUPABASE_URL = 'ضع_رابطك_هنا'
-const SUPABASE_KEY = 'ضع_الـanon_key_هنا'
-const CRYPTOBOT_TOKEN = 'ضع_توكن_CryptoBot_هنا'
-const ADMIN_ID = 123456789 // حط ID تيليجرام بتاعك هنا
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 const tg = window.Telegram.WebApp
 tg.expand()
 
@@ -26,182 +19,56 @@ window.showTab = (tab) => {
   document.getElementById('admin').style.display = tab === 'admin'? 'block' : 'none'
 }
 
-// --- صفحة المتجر ---
+// --- تحميل الكتب من books.json ---
 async function loadBooks() {
-  let { data } = await supabase.from('books').select('*').gt('stock', 0)
-  let html = data.map(b => `
-    <div class="book">
-      <img src="${b.image_url}">
-      <h3>${b.title}</h3>
-      <p>${b.author}</p>
-      <p><b>${b.price_usdt} USDT</b></p>
-      <button onclick="addToCart('${b.id}', '${b.title}', ${b.price_usdt})">أضف للسلة</button>
-    </div>
-  `).join('')
-  document.getElementById('books').innerHTML = html || '<p>لا توجد كتب حالياً</p>'
+  try {
+    const res = await fetch('./books.json')
+    if(!res.ok) throw new Error('ملف الكتب ما موجود')
+    const data = await res.json()
+    
+    let html = data.map(b => `
+      <div class="book">
+        <img src="${b.image}">
+        <h3>${b.title}</h3>
+        <p>${b.author}</p>
+        <p><b>${b.price} USDT</b></p>
+        <button onclick="addToCart('${b.id}', '${b.title}', ${b.price})">أضف للسلة</button>
+      </div>
+    `).join('')
+    document.getElementById('books').innerHTML = html || '<p>لا توجد كتب حالياً</p>'
+  } catch(err) {
+    document.getElementById('books').innerHTML = '<p style="color:red">خطأ في تحميل الكتب</p>'
+    console.error(err)
+  }
 }
 
 window.addToCart = (id, title, price) => {
   cart.push({id, title, price})
   document.getElementById('cart-count').innerText = cart.length
+  tg.showAlert(`تمت إضافة "${title}" للسلة`)
 }
 
-window.checkout = async (method) => {
+window.checkout = (method) => {
   if (cart.length === 0) return alert('السلة فاضية')
   const total = cart.reduce((sum, i) => sum + i.price, 0)
 
   if (method === 'crypto') {
-    const res = await fetch('https://pay.crypt.bot/api/createInvoice', {
-      method: 'POST',
-      headers: {
-        'Crypto-Pay-API-Token': CRYPTOBOT_TOKEN,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        asset: 'USDT',
-        amount: total.toString(),
-        description: 'طلب كتب'
-      })
-    })
-    const data = await res.json()
-    if (data.ok) {
-      await supabase.from('orders').insert([{
-        user_id: userId,
-        items: cart,
-        total_usdt: total,
-        payment_method: 'crypto',
-        tx_id: data.result.invoice_id,
-        status: 'pending'
-      }])
-      tg.openLink(data.result.pay_url)
-      checkPayment(data.result.invoice_id)
-    }
+    alert(`الدفع بـ USDT/TRX\nالمبلغ: ${total} USDT\nهذه نسخة تجريبية، ربط الدفع بيكون عبر CryptoBot بعدين`)
   }
 
   if (method === 'bank') {
-    await supabase.from('orders').insert([{
-      user_id: userId,
-      items: cart,
-      total_usdt: total,
-      payment_method: 'bank',
-      status: 'pending'
-    }])
-    alert('حول المبلغ على: بنك الخرطوم 123456789\nرقم الحساب: 987654321\nثم أرسل الإيصال للبوت')
+    alert(`تحويل بنكي\nالمبلغ: ${total} USDT\nبنك الخرطوم 123456789\nرقم الحساب: 987654321\nأرسل الإيصال للبوت بعد التحويل`)
   }
+  
+  cart = []
+  document.getElementById('cart-count').innerText = 0
 }
 
-async function checkPayment(invoiceId) {
-  const interval = setInterval(async () => {
-    const res = await fetch(`https://pay.crypt.bot/api/getInvoices?invoice_ids=${invoiceId}`, {
-      headers: {'Crypto-Pay-API-Token': CRYPTOBOT_TOKEN}
-    })
-    const data = await res.json()
-    if (data.ok && data.result.items[0].status === 'paid') {
-      clearInterval(interval)
-      await supabase.from('orders').update({status: 'paid'}).eq('tx_id', invoiceId)
-      tg.showAlert('تم الدفع بنجاح!')
-      cart = []
-      document.getElementById('cart-count').innerText = 0
-      loadBooks()
-    }
-  }, 5000)
-}
-
-// --- صفحة الإدارة ---
+// --- صفحة الإدارة - مؤقتاً معطلة ---
 function checkAdmin() {
-  if (userId!== ADMIN_ID) {
+  const ADMIN_ID = 123456789 // غيرو لـ ID بتاعك
+  if (userId !== ADMIN_ID) {
     document.getElementById('admin').innerHTML = '<p>غير مسموح. هذه الصفحة للأدمن فقط.</p>'
     return false
   }
-  loadAdminBooks()
-  return true
-}
-
-async function loadAdminBooks() {
-  let { data } = await supabase.from('books').select('*').order('created_at', {ascending: false})
-  let html = data.map(b => `
-    <div class="book">
-      <h3>${b.title}</h3>
-      <p>${b.author} - ${b.price_usdt} USDT</p>
-      <button onclick="deleteBook('${b.id}')" style="background:red">حذف</button>
-    </div>
-  `).join('')
-  document.getElementById('admin-list').innerHTML = html
-}
-
-window.addBook = async () => {
-  const title = document.getElementById('title').value
-  const author = document.getElementById('author').value
-  const price = document.getElementById('price').value
-  const image = document.getElementById('image').value
-  const desc = document.getElementById('desc').value
-
-  if (!title ||!price) return alert('العنوان والسعر مطلوبين')
-
-  await supabase.from('books').insert([{
-    title, author, price_usdt: price, image_url: image, description: desc, stock: 10
-  }])
-
-  alert('تمت الإضافة')
-  document.getElementById('add-form').reset()
-  loadAdminBooks()
-}
-
-window.deleteBook = async (id) => {
-  if (!confirm('متأكد من الحذف؟')) return
-  await supabase.from('books').delete().eq('id', id)
-  loadAdminBooks()
-}
-
-loadBooks()
-checkAdmin()
-</script>
-
-<style>
-body {font-family: sans-serif; padding: 15px; background: #f5f5f5;}
-.tabs {display: flex; gap: 10px; margin-bottom: 15px;}
-.tabs button {flex: 1; padding: 10px; border: none; background: #ddd; border-radius: 8px;}
-.book {background: white; padding: 10px; margin-bottom: 10px; border-radius: 10px;}
-.book img {width: 80px; height: 110px; object-fit: cover; float: left; margin-left: 10px;}
-button {background: #0088cc; color: white; border: none; padding: 10px; border-radius: 8px; width: 100%; margin-top: 5px;}
-input, textarea {width: 100%; padding: 8px; margin: 5px 0; border-radius: 6px; border: 1px solid #ccc;}
-</style>
-</head>
-<body>
-
-<div class="tabs">
-  <button onclick="showTab('store')">المتجر</button>
-  <button onclick="showTab('admin')">الإدارة</button>
-</div>
-
-<!-- صفحة المتجر -->
-<div id="store">
-  <h2>📚 مكتبة الكتب</h2>
-  <div>السلة: <span id="cart-count">0</span></div>
-  <div id="books">جاري التحميل...</div>
-  <hr>
-  <button onclick="checkout('crypto')">الدفع بـ USDT/TRX</button>
-  <button onclick="checkout('bank')" style="background:#28a745">تحويل بنكي</button>
-</div>
-
-<!-- صفحة الإدارة -->
-<div id="admin" style="display:none">
-  <h2>⚙️ إدارة الكتب</h2>
-
-  <h3>إضافة كتاب جديد</h3>
-  <form id="add-form" onsubmit="event.preventDefault(); addBook()">
-    <input id="title" placeholder="عنوان الكتاب" required>
-    <input id="author" placeholder="المؤلف">
-    <input id="price" type="number" step="0.01" placeholder="السعر بـ USDT" required>
-    <input id="image" placeholder="رابط الصورة">
-    <textarea id="desc" placeholder="وصف مختصر"></textarea>
-    <button type="submit">إضافة</button>
-  </form>
-
-  <hr>
-  <h3>الكتب الحالية</h3>
-  <div id="admin-list">جاري التحميل...</div>
-</div>
-
-</body>
-</html>
+  document.getElementById('admin-list').inner
