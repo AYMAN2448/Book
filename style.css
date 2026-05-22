@@ -371,3 +371,63 @@ input:focus, select:focus, textarea:focus {
   width: 24px;
   height: 24px;
 } 
+
+
+/* جعل عرض كتابين في الصف على الشاشات المتوسطة والصغيرة */
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .card {
+    padding: 10px;
+  }
+
+  /* تصغير الصورة */
+  .card img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 6px;
+  }
+
+  /* تصغير النصوص والأزرار داخل البطاقة */
+  .card h3 {
+    font-size: 0.85rem;
+    margin: 5px 0 2px;
+  }
+
+  .card p, .card .author, .card .price {
+    font-size: 0.75rem;
+    margin: 2px 0;
+  }
+
+  .card .btn {
+    padding: 5px 8px;
+    font-size: 0.7rem;
+    margin-top: 5px;
+  }
+
+  .card-buttons {
+    gap: 6px;
+  }
+}
+
+/* للشاشات الصغيرة جداً (أقل من 450px) يمكن جعل كتاب واحد إذا أردت، لكن حافظنا على كتابين */
+@media (max-width: 480px) {
+  .grid {
+    gap: 8px;
+  }
+  .card {
+    padding: 8px;
+  }
+  .card h3 {
+    font-size: 0.75rem;
+  }
+  .card .btn {
+    font-size: 0.65rem;
+  }
+}
