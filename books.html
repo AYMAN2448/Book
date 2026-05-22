@@ -103,7 +103,7 @@ function showToast(msg) {
 
 // دالة مشاركة الكتاب
 function shareBook(bookId, bookTitle, bookPrice) {
-  const url = `${window.location.origin}/book?id=${bookId}`;
+  const url = `${window.location.origin}/book.html?id=${bookId}`;
   const shareText = `📚 ${bookTitle} - السعر: ${bookPrice} $\nلشراء الكتاب، افتح الرابط: ${url}`;
   if (navigator.share) {
     navigator.share({
