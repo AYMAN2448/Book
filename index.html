@@ -3,26 +3,90 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>مكتبة الكتب الرقمية</title>
+<title>مكتبة سديم الرقمية</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 <style>
-  .copy-container { display: flex; align-items: center; gap: 8px; background: #fff; padding: 8px 12px; border-radius: 8px; direction: ltr; margin: 10px 0; border: 1px solid #ddd; }
-  .copy-address { flex: 1; font-family: monospace; font-size: 14px; cursor: pointer; user-select: all; }
-  .copy-btn { background: #e94560; color: white; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
-  .toast-msg { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 16px; border-radius: 30px; z-index: 2000; }
-  .info-block { background: #f9f9f9; border-right: 4px solid #e94560; padding: 12px; border-radius: 12px; margin: 10px 0; }
-  .discount-badge { background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; padding: 12px; border-radius: 12px; text-align: center; margin: 15px 0; font-weight: bold; }
-  .old-price { text-decoration: line-through; color: #999; margin-left: 8px; }
-  .new-price { color: #27ae60; font-weight: bold; font-size: 1.3rem; }
-  .card-buttons { display: flex; gap: 10px; margin-top: 10px; }
-  .card-buttons .btn { flex: 1; margin: 0; }
-  .share-btn { background: #4a6fa5; }
-  .share-btn:hover { background: #3a5a8a; }
-  .search-container { margin: 20px 0; text-align: center; }
-  #searchInput { width: 60%; max-width: 400px; padding: 22px 20px; border: 2px solid #ddd; border-radius: 30px; font-size: 10px; font-family: 'Cairo', sans-serif; }
-  #searchInput:focus { outline: none; border-color: #e94560; }
-  .no-results { text-align: center; padding: 40px; font-size: 18px; color: #999; }
+  /* تنسيق محسن لمربع البحث */
+  .search-container {
+    margin: 20px auto;
+    text-align: center;
+    max-width: 600px;
+    width: 100%;
+  }
+  #searchInput {
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 1rem;
+    border-radius: 50px;
+    border: 1px solid #ddd;
+    background: #fff;
+    transition: all 0.3s ease;
+    font-family: 'Cairo', sans-serif;
+  }
+  #searchInput:focus {
+    border-color: #e94560;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(233,69,96,0.1);
+  }
+  /* تنسيق أزرار التصفح */
+  .pagination {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 30px;
+    margin-bottom: 20px;
+  }
+  .pagination button {
+    background: #e94560;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: bold;
+    transition: background 0.2s;
+  }
+  .pagination button:hover {
+    background: #c72a48;
+  }
+  .pagination button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+  .page-info {
+    text-align: center;
+    font-size: 0.9rem;
+    color: #777;
+    margin-bottom: 10px;
+  }
+  /* تحسين عرض البطاقات */
+  .card {
+    padding: 12px;
+  }
+  .card h3 {
+    font-size: 1rem;
+    margin: 8px 0 4px;
+  }
+  .card .author {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 6px;
+  }
+  .card .price {
+    font-size: 0.9rem;
+    font-weight: bold;
+    margin: 6px 0;
+  }
+  .card-buttons .btn {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+  @media (max-width: 768px) {
+    .search-container { max-width: 90%; }
+    #searchInput { font-size: 0.85rem; padding: 10px 16px; }
+  }
 </style>
 </head>
 <body>
@@ -46,9 +110,16 @@
   
   <div class="grid" id="homeBooksGrid"></div>
   <div id="noResultsMsg" class="no-results" style="display:none;">لا توجد كتب تطابق بحثك</div>
+  
+  <!-- أزرار التصفح -->
+  <div class="pagination">
+    <button id="prevPageBtn" onclick="changePage(-1)" disabled>⟪ السابق</button>
+    <span class="page-info" id="pageInfo"></span>
+    <button id="nextPageBtn" onclick="changePage(1)">التالي ⟫</button>
+  </div>
 </div>
 
-<!-- مودال الدفع -->
+<!-- مودال الدفع (نفسه) -->
 <div class="modal" id="payModal">
   <div class="modal-content">
     <h3>اختر طريقة الدفع</h3>
@@ -83,13 +154,15 @@
 const USD_TO_LOCAL = 4000;
 const LOCAL_CURRENCY_NAME = "ج.س";
 const USD_TO_TRX = 6.7;
-const DISCOUNT_RATE = 0.5;
+const DISCOUNT_RATE = 0.3;
 const CRYPTO_ADDRESS = "TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L";
 
 let selectedBook = null;
 let currentOrderId = null;
 let currentMethod = null;
 let allBooks = [];
+let currentPage = 1;
+const BOOKS_PER_PAGE = 20;
 
 function copyToClipboard(text) {
   navigator.clipboard.writeText(text).then(() => showToast('✅ تم نسخ العنوان')).catch(() => showToast('❌ فشل النسخ'));
@@ -129,8 +202,6 @@ async function downloadFreeBook(bookId) {
     });
     if (res.success && res.downloadToken) {
       window.location.href = `/api/download?token=${res.downloadToken}`;
-    } else if (res.success && res.autoDownload) {
-      window.location.href = `/api/download?token=${res.downloadToken}`;
     } else {
       showToast('حدث خطأ أثناء تحميل الكتاب المجاني');
     }
@@ -139,59 +210,86 @@ async function downloadFreeBook(bookId) {
   }
 }
 
-// عرض الكتب مع دعم المجاني
-function renderBooks(books) {
+// عرض الكتب مع دعم المجاني والتصفح
+function renderPage() {
+  const start = (currentPage - 1) * BOOKS_PER_PAGE;
+  const end = start + BOOKS_PER_PAGE;
+  const booksToShow = allBooks.slice(start, end);
   const grid = document.getElementById('homeBooksGrid');
   const noResults = document.getElementById('noResultsMsg');
+  
   if (!grid) return;
-  if (books.length === 0) {
+  if (booksToShow.length === 0 && allBooks.length === 0) {
     grid.innerHTML = '';
     noResults.style.display = 'block';
-    return;
-  }
-  noResults.style.display = 'none';
-  grid.innerHTML = books.map(book => {
-    const isFree = (book.price === 0);
-    const priceDisplay = isFree ? '<span style="color:#27ae60; font-weight:bold;">🎁 مجاني</span>' : `${book.price} $`;
-    const buttonText = isFree ? '📥 تحميل مجاني' : 'شراء';
-    return `
-      <div class="card">
-        <img src="${book.cover}" style="width:100%; border-radius:8px;">
-        <h3>${book.title}</h3>
-        <p>${book.author ? `✍️ ${book.author}` : ''}</p>
-        <p>💰 السعر: ${priceDisplay}</p>
-        <div class="card-buttons">
-          <button class="btn" onclick='${isFree ? `downloadFreeBook(${book.id})` : `openModal(${JSON.stringify(book).replace(/"/g, '&quot;')})`}'>${buttonText}</button>
-          <button class="btn share-btn" onclick="shareBook(${book.id}, '${book.title.replace(/'/g, "\\'")}', ${book.price})">📤 مشاركة</button>
+  } else {
+    noResults.style.display = 'none';
+    grid.innerHTML = booksToShow.map(book => {
+      const isFree = (book.price === 0);
+      const priceDisplay = isFree ? '<span style="color:#27ae60; font-weight:bold;">🎁 مجاني</span>' : `${book.price} $`;
+      const buttonText = isFree ? '📥 تحميل مجاني' : 'شراء';
+      return `
+        <div class="card">
+          <img src="${book.cover}" style="width:100%; border-radius:8px;">
+          <h3>${book.title}</h3>
+          <p>${book.author ? `✍️ ${book.author}` : ''}</p>
+          <p>💰 السعر: ${priceDisplay}</p>
+          <div class="card-buttons">
+            <button class="btn" onclick='${isFree ? `downloadFreeBook(${book.id})` : `openModal(${JSON.stringify(book).replace(/"/g, '&quot;')})`}'>${buttonText}</button>
+            <button class="btn share-btn" onclick="shareBook(${book.id}, '${book.title.replace(/'/g, "\\'")}', ${book.price})">📤 مشاركة</button>
+          </div>
         </div>
-      </div>
-    `;
-  }).join('');
+      `;
+    }).join('');
+  }
+  
+  // تحديث أزرار التصفح
+  const totalPages = Math.ceil(allBooks.length / BOOKS_PER_PAGE);
+  document.getElementById('pageInfo').innerText = `الصفحة ${currentPage} من ${totalPages || 1}`;
+  document.getElementById('prevPageBtn').disabled = (currentPage === 1);
+  document.getElementById('nextPageBtn').disabled = (currentPage === totalPages);
 }
 
-// تحميل الكتب والبحث
-fetch('/books.json')
-  .then(r => r.json())
-  .then(books => {
-    allBooks = books;
-    renderBooks(allBooks);
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-      searchInput.addEventListener('input', () => {
-        const query = searchInput.value.trim().toLowerCase();
-        if (!query) renderBooks(allBooks);
-        else {
-          const filtered = allBooks.filter(book => 
-            book.title.toLowerCase().includes(query) || 
-            (book.author && book.author.toLowerCase().includes(query))
-          );
-          renderBooks(filtered);
-        }
-      });
-    }
-  }).catch(e => console.error(e));
+function changePage(delta) {
+  const newPage = currentPage + delta;
+  const totalPages = Math.ceil(allBooks.length / BOOKS_PER_PAGE);
+  if (newPage >= 1 && newPage <= totalPages) {
+    currentPage = newPage;
+    renderPage();
+  }
+}
 
-// دوال الدفع (كما هي)
+// تحميل الكتب والبحث مع إعادة ضبط التصفح
+function loadBooksAndRender() {
+  fetch('/books.json')
+    .then(r => r.json())
+    .then(books => {
+      allBooks = books;
+      currentPage = 1;
+      renderPage();
+      // ربط حدث البحث
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput) {
+        searchInput.addEventListener('input', () => {
+          const query = searchInput.value.trim().toLowerCase();
+          if (!query) {
+            allBooks = books;
+          } else {
+            allBooks = books.filter(book => 
+              book.title.toLowerCase().includes(query) || 
+              (book.author && book.author.toLowerCase().includes(query))
+            );
+          }
+          currentPage = 1;
+          renderPage();
+        });
+      }
+    }).catch(e => console.error(e));
+}
+
+loadBooksAndRender();
+
+// ========== دوال الدفع (كما هي) ==========
 function openModal(book) {
   selectedBook = book;
   const method = document.getElementById('payMethod').value;
@@ -268,7 +366,6 @@ async function createOrder() {
       alert(`✅ تم إنشاء الطلب رقم: ${res.orderId}\nالمبلغ المطلوب: ${displayAmount}\n\n📌 استخدم هذا الرقم عند التحويل.\nبعد التحويل، سجل رقم الإيصال في حقل الإثبات.`);
       window.location.href = '/orders.html';
     } else if (res.autoDownload && res.downloadToken) {
-      // للكتب المجانية أو الصفرية
       window.location.href = `/api/download?token=${res.downloadToken}`;
     } else {
       currentOrderId = res.orderId;
