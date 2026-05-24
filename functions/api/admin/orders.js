@@ -5,21 +5,46 @@ export async function onRequestGet({ request, env }) {
   if (token !== 'secret_admin_token') return Response.json({ success: false }, { status: 401 });
 
   const url = new URL(request.url);
-  const page = parseInt(url.searchParams.get('page') || '1');
-  const limit = 10;
-  const offset = (page - 1) * limit;
+  const pendingPage = parseInt(url.searchParams.get('pending_page') || '1');
+  const approvedPage = parseInt(url.searchParams.get('approved_page') || '1');
+  const pendingLimit = 10;
+  const approvedLimit = 5;
+  const pendingOffset = (pendingPage - 1) * pendingLimit;
+  const approvedOffset = (approvedPage - 1) * approvedLimit;
 
-  // 1. الطلبات المكتملة (آخر 5)
+  // 1. الكتب المجانية (آخر 4 فقط)
+  const freeOrders = await env.DB.prepare(
+    `SELECT o.*, b.title as book_title 
+     FROM orders o
+     LEFT JOIN books b ON o.book_id = b.id
+     WHERE o.status = 'approved' AND o.method = 'free'
+     ORDER BY o.created_at DESC
+     LIMIT 4`
+  ).all();
+
+  // 2. إجمالي عدد الكتب المجانية (للعداد)
+  const freeCountResult = await env.DB.prepare(
+    `SELECT COUNT(*) as count FROM orders WHERE status = 'approved' AND method = 'free'`
+  ).first();
+  const freeTotal = freeCountResult ? freeCountResult.count : 0;
+
+  // 3. الطلبات المكتملة (غير المجانية) – آخر 5 مع ترحيل
   const approvedOrders = await env.DB.prepare(
     `SELECT o.*, b.title as book_title 
      FROM orders o
      LEFT JOIN books b ON o.book_id = b.id
-     WHERE o.status = 'approved'
+     WHERE o.status = 'approved' AND (o.method != 'free' OR o.method IS NULL)
      ORDER BY o.created_at DESC
-     LIMIT 5`
-  ).all();
+     LIMIT ? OFFSET ?`
+  ).bind(approvedLimit, approvedOffset).all();
 
-  // 2. الطلبات المعلقة (pending + pending_review) مع ترحيل
+  const approvedTotalResult = await env.DB.prepare(
+    `SELECT COUNT(*) as count FROM orders WHERE status = 'approved' AND (method != 'free' OR method IS NULL)`
+  ).first();
+  const approvedTotal = approvedTotalResult ? approvedTotalResult.count : 0;
+  const approvedHasMore = approvedOffset + approvedLimit < approvedTotal;
+
+  // 4. الطلبات المعلقة (pending + pending_review) – 10 مع ترحيل
   const pendingOrders = await env.DB.prepare(
     `SELECT o.*, b.title as book_title 
      FROM orders o
@@ -27,25 +52,15 @@ export async function onRequestGet({ request, env }) {
      WHERE o.status IN ('pending', 'pending_review')
      ORDER BY o.created_at DESC
      LIMIT ? OFFSET ?`
-  ).bind(limit, offset).all();
+  ).bind(pendingLimit, pendingOffset).all();
 
-  // 3. إجمالي عدد الطلبات المعلقة (لحساب وجود صفحات إضافية)
-  const totalPendingCount = await env.DB.prepare(
+  const pendingTotalResult = await env.DB.prepare(
     `SELECT COUNT(*) as count FROM orders WHERE status IN ('pending', 'pending_review')`
   ).first();
-  const hasMore = offset + limit < (totalPendingCount ? totalPendingCount.count : 0);
+  const pendingTotal = pendingTotalResult ? pendingTotalResult.count : 0;
+  const pendingHasMore = pendingOffset + pendingLimit < pendingTotal;
 
-  // 4. جلب الكتب المجانية (status = 'approved' AND method = 'free') – للإشعارات
-  const freeOrders = await env.DB.prepare(
-    `SELECT o.*, b.title as book_title 
-     FROM orders o
-     LEFT JOIN books b ON o.book_id = b.id
-     WHERE o.status = 'approved' AND o.method = 'free'
-     ORDER BY o.created_at DESC
-     LIMIT 20`
-  ).all();
-
-  // جلب بيانات الكتب من books.json لضمان ظهور الأسماء (احتياطي)
+  // إثراء البيانات بأسماء الكتب (في حال فشل LEFT JOIN بسبب عدم وجود جدول books)
   let booksMap = new Map();
   try {
     const booksRes = await fetch('https://' + request.headers.get('host') + '/books.json');
@@ -61,11 +76,16 @@ export async function onRequestGet({ request, env }) {
 
   return Response.json({
     success: true,
-    pending: pendingOrders.results.map(enrich),
-    approved: approvedOrders.results.map(enrich),
     free: freeOrders.results.map(enrich),
-    hasMore,
-    page
+    freeTotal,
+    approved: approvedOrders.results.map(enrich),
+    approvedTotal,
+    approvedHasMore,
+    approvedPage,
+    pending: pendingOrders.results.map(enrich),
+    pendingTotal,
+    pendingHasMore,
+    pendingPage
   });
 }
 
@@ -84,14 +104,14 @@ export async function onRequestPost({ request, env }) {
     const books = await booksRes.json();
     const book = books.find(b => b.id == order.book_id);
     if (!book) return Response.json({ success: false, error: 'الكتاب غير موجود' });
-    
+
     const downloadToken = crypto.randomUUID();
     const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
 
     await env.DB.prepare(
       `UPDATE orders SET status = 'approved', download_token = ?, token_expires_at = ?, updated_at = ? WHERE id = ?`
     ).bind(downloadToken, expiresAt, Date.now(), orderId).run();
-    
+
     return Response.json({ success: true });
   } else if (action === 'reject') {
     await env.DB.prepare(
