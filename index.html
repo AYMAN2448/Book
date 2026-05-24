@@ -2,49 +2,58 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-  <meta name="description" content="مكتبة الكتب الرقمية – اشترِ كتبك المفضلة وادفع بعملات رقمية أو تحويل كاشي مع خصم يصل إلى 50%.">
-<meta name="keywords" content="كتب, مكتبة, كتب رقمية, شراء كتب, تحميل كتب, TRX, USDT, كاشي">
-<meta name="author" content="Book4ever">
-<meta name="robots" content="index, follow">
-<link rel="canonical" href="https://your-site.pages.dev/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>مكتبة سديم للكتب الإلكترونية </title>
+<title>مكتبة الكتب الرقمية</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 <style>
-  .copy-container { display: flex; align-items: center; gap: 8px; background: #fff; padding: 8px 12px; border-radius: 8px; direction: ltr; margin: 10px 0; border: 1px solid #ddd; }
-  .copy-address { flex: 1; font-family: monospace; font-size: 14px; cursor: pointer; user-select: all; }
-  .copy-btn { background: #e94560; color: white; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
-  .toast-msg { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 16px; border-radius: 30px; z-index: 2000; }
-  .info-block { background: #f9f9f9; border-right: 4px solid #e94560; padding: 12px; border-radius: 12px; margin: 10px 0; }
-  .discount-badge { background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; padding: 12px; border-radius: 12px; text-align: center; margin: 15px 0; font-weight: bold; }
-  .old-price { text-decoration: line-through; color: #999; margin-left: 8px; }
-  .new-price { color: #27ae60; font-weight: bold; font-size: 1.3rem; }
-  .card-buttons { display: flex; gap: 10px; margin-top: 10px; }
-  .card-buttons .btn { flex: 1; margin: 0; }
-  .share-btn { background: #4a6fa5; }
-  .share-btn:hover { background: #3a5a8a; }
+  /* تنسيقات إضافية لتحسين المظهر */
+  .search-container { margin: 20px auto; text-align: center; max-width: 600px; width: 100%; }
+  #searchInput { width: 100%; padding: 12px 20px; font-size: 1rem; border-radius: 50px; border: 1px solid #ddd; transition: all 0.3s; }
+  #searchInput:focus { border-color: #e94560; outline: none; box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+  .pagination { display: flex; justify-content: center; gap: 15px; margin-top: 30px; margin-bottom: 20px; }
+  .pagination button { background: #e94560; color: white; border: none; padding: 8px 20px; border-radius: 30px; cursor: pointer; font-size: 0.9rem; font-weight: bold; }
+  .pagination button:disabled { background: #ccc; cursor: not-allowed; }
+  .page-info { text-align: center; font-size: 0.9rem; color: #777; margin-bottom: 10px; }
+  .card { padding: 12px; display: flex; flex-direction: column; height: 100%; }
+  .card h3 { font-size: 1rem; margin: 8px 0 4px; }
+  .card .author { font-size: 0.8rem; color: #666; margin-bottom: 6px; }
+  .card .price { font-size: 0.9rem; font-weight: bold; margin: 6px 0; }
+  .card-buttons { display: flex; flex-direction: row; gap: 8px; margin-top: auto; justify-content: space-between; }
+  .card-buttons .btn { flex: 1; padding: 6px 10px; font-size: 0.75rem; text-align: center; white-space: nowrap; }
+  @media (max-width: 480px) { .card-buttons .btn { font-size: 0.7rem; white-space: normal; } }
 </style>
 </head>
 <body>
 <header>
-  <h2> سديم للكتب الالكترونية</h2>
+  <h2>مكتبة سديم للكتب الإلكترونية</h2>
   <nav>
     <a href="/">الرئيسية</a>
     <a href="/books.html">الكتب</a>
-    <a href="/research.html">بحوث علمية</a>
     <a href="/orders.html">طلباتي</a>
-    
+    <a href="/admin-login.html">الأدمن</a>
   </nav>
 </header>
 
 <div class="container">
-  <h2 style="text-align:center;">مرحباً بك في مكتبة الكتب الرقمية</h2>
+  <h1 style="text-align:center;">مرحباً بك في مكتبة الكتب الرقمية</h1>
+  <p style="text-align:center;">اختر كتابك المفضل وادفع بسهولة (عملات رقمية أو تحويل كاشي)</p>
+  
+  <div class="search-container">
+    <input type="text" id="searchInput" placeholder="🔍 ابحث عن كتاب (عنوان، مؤلف)...">
+  </div>
   
   <div class="grid" id="homeBooksGrid"></div>
+  <div id="noResultsMsg" class="no-results" style="display:none;">لا توجد كتب تطابق بحثك</div>
+  
+  <div class="pagination">
+    <button id="prevPageBtn" onclick="changePage(-1)" disabled>⟪ السابق</button>
+    <span class="page-info" id="pageInfo"></span>
+    <button id="nextPageBtn" onclick="changePage(1)">التالي ⟫</button>
+  </div>
 </div>
 
-<!-- مودال الدفع -->
+<!-- مودال الدفع (للكتب المدفوعة فقط) -->
 <div class="modal" id="payModal">
   <div class="modal-content">
     <h3>اختر طريقة الدفع</h3>
@@ -73,30 +82,21 @@
   </div>
 </div>
 
-  <!-- زر التواصل المباشر عبر تلغرام -->
-<a href="https://www.facebook.com/profile.php?id=61590391556021" target="_blank" class="telegram-contact">
-  <img src="https://cdn-icons-png.flaticon.com/512/2111/2111646.png" alt="Telegram" style="width:15px; height:15px;">
-  📩 تواصل & بلاغ
-</a>
-
-<div class="container">
-  <h3 style="text-align:center;">مرحباً بك في مكتبة الكتب الرقمية</h3>
-  <p style="text-align:center;">اختر كتابك المفضل وادفع بسهولة (عبر العملات الرقمية-تحويل كاشي-فودافون كاش)</p>
-  <div class="grid" id="homeBooksGrid"></div>
-</div>
-  
 <script src="/script.js"></script>
 <script>
 // ========== إعدادات سعر الصرف والخصم ==========
-const USD_TO_LOCAL = 4100;
+const USD_TO_LOCAL = 4000;
 const LOCAL_CURRENCY_NAME = "ج.س";
 const USD_TO_TRX = 6.7;
-const DISCOUNT_RATE = 0.3;
+const DISCOUNT_RATE = 0.3;   // خصم 30%
 const CRYPTO_ADDRESS = "TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L";
 
 let selectedBook = null;
 let currentOrderId = null;
 let currentMethod = null;
+let allBooks = [];
+let currentPage = 1;
+const BOOKS_PER_PAGE = 20;
 
 function copyToClipboard(text) {
   navigator.clipboard.writeText(text).then(() => showToast('✅ تم نسخ العنوان')).catch(() => showToast('❌ فشل النسخ'));
@@ -113,39 +113,112 @@ function showToast(msg) {
   setTimeout(() => toast.style.display = 'none', 2000);
 }
 
-// دالة مشاركة الكتاب (ترسل رابط صفحة الكتاب المنفرد)
 function shareBook(bookId, bookTitle, bookPrice) {
-  const url = `${window.location.origin}/book?id=${bookId}`;
-  const shareText = `📚 ${bookTitle} - السعر: ${bookPrice} $\nلشراء الكتاب، افتح الرابط: ${url}`;
+  const url = `${window.location.origin}/book.html?id=${bookId}`;
+  const shareText = `📚 ${bookTitle}${bookPrice > 0 ? ` - السعر: ${bookPrice} $` : ' (مجاني)'}\nلشراء/تحميل الكتاب، افتح الرابط: ${url}`;
   if (navigator.share) {
-    navigator.share({
-      title: bookTitle,
-      text: shareText,
-      url: url
-    }).catch(e => console.log(e));
+    navigator.share({ title: bookTitle, text: shareText, url: url }).catch(e => console.log(e));
   } else {
     navigator.clipboard.writeText(shareText).then(() => showToast('📋 تم نسخ رابط الكتاب'));
   }
 }
 
-fetch('/books.json')
-  .then(r => r.json())
-  .then(books => {
-    const grid = document.getElementById('homeBooksGrid');
-    if (!grid) return;
-    grid.innerHTML = books.map(book => `
-      <div class="card">
-        <img src="${book.cover}" style="width:100%; border-radius:8px;">
-        <h3>${book.title}</h3>
-        <p>السعر: ${book.price} $</p>
-        <div class="card-buttons">
-          <button class="btn" onclick='openModal(${JSON.stringify(book).replace(/"/g, '&quot;')})'>شراء</button>
-          <button class="btn share-btn" onclick="shareBook(${book.id}, '${book.title.replace(/'/g, "\\'")}', ${book.price})">📤 مشاركة</button>
-        </div>
-      </div>
-    `).join('');
-  }).catch(e => console.error(e));
+// دالة تحميل الكتاب المجاني مباشرة (بدون مودال)
+async function downloadFreeBook(bookId) {
+  showToast('جاري تجهيز الكتاب المجاني...');
+  try {
+    const res = await api('/api/create-invoice', 'POST', {
+      bookId: bookId,
+      method: 'free',
+      amount: 0,
+      proof: null
+    });
+    if (res.success && res.downloadToken) {
+      // توجيه مباشر إلى رابط التحميل
+      window.location.href = `/api/download?token=${res.downloadToken}`;
+    } else if (res.success && res.autoDownload) {
+      window.location.href = `/api/download?token=${res.downloadToken}`;
+    } else {
+      showToast('حدث خطأ أثناء تحميل الكتاب المجاني');
+    }
+  } catch (err) {
+    showToast('خطأ: ' + err.message);
+  }
+}
 
+function renderPage() {
+  const start = (currentPage - 1) * BOOKS_PER_PAGE;
+  const end = start + BOOKS_PER_PAGE;
+  const booksToShow = allBooks.slice(start, end);
+  const grid = document.getElementById('homeBooksGrid');
+  const noResults = document.getElementById('noResultsMsg');
+  if (!grid) return;
+  if (booksToShow.length === 0 && allBooks.length === 0) {
+    grid.innerHTML = '';
+    noResults.style.display = 'block';
+  } else {
+    noResults.style.display = 'none';
+    grid.innerHTML = booksToShow.map(book => {
+      const isFree = (book.price === 0);
+      const priceDisplay = isFree ? '<span style="color:#27ae60; font-weight:bold;">🎁 مجاني</span>' : `${book.price} $`;
+      // نحدد النص والحدث حسب السعر
+      let buttonHtml = '';
+      if (isFree) {
+        buttonHtml = `<button class="btn" onclick="downloadFreeBook(${book.id})">📥 تحميل مجاني</button>`;
+      } else {
+        buttonHtml = `<button class="btn" onclick='openModal(${JSON.stringify(book).replace(/"/g, '&quot;')})'>شراء</button>`;
+      }
+      return `
+        <div class="card">
+          <img src="${book.cover}" style="width:100%; border-radius:8px;">
+          <h3>${book.title}</h3>
+          <p class="author">${book.author ? `✍️ ${book.author}` : ''}</p>
+          <p class="price">💰 السعر: ${priceDisplay}</p>
+          <div class="card-buttons">
+            ${buttonHtml}
+            <button class="btn share-btn" onclick="shareBook(${book.id}, '${book.title.replace(/'/g, "\\'")}', ${book.price})">📤 مشاركة</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+  const totalPages = Math.ceil(allBooks.length / BOOKS_PER_PAGE);
+  document.getElementById('pageInfo').innerText = `الصفحة ${currentPage} من ${totalPages || 1}`;
+  document.getElementById('prevPageBtn').disabled = (currentPage === 1);
+  document.getElementById('nextPageBtn').disabled = (currentPage === totalPages);
+}
+
+function changePage(delta) {
+  const newPage = currentPage + delta;
+  const totalPages = Math.ceil(allBooks.length / BOOKS_PER_PAGE);
+  if (newPage >= 1 && newPage <= totalPages) {
+    currentPage = newPage;
+    renderPage();
+  }
+}
+
+function loadBooksAndRender() {
+  fetch('/books.json')
+    .then(r => r.json())
+    .then(books => {
+      allBooks = books;
+      currentPage = 1;
+      renderPage();
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput) {
+        searchInput.addEventListener('input', () => {
+          const query = searchInput.value.trim().toLowerCase();
+          if (!query) allBooks = books;
+          else allBooks = books.filter(book => book.title.toLowerCase().includes(query) || (book.author && book.author.toLowerCase().includes(query)));
+          currentPage = 1;
+          renderPage();
+        });
+      }
+    }).catch(e => console.error(e));
+}
+loadBooksAndRender();
+
+// دوال الدفع للكتب المدفوعة (لا تتغير)
 function openModal(book) {
   selectedBook = book;
   const method = document.getElementById('payMethod').value;
@@ -153,36 +226,27 @@ function openModal(book) {
   document.getElementById('payModal').classList.add('active');
   currentOrderId = null;
 }
-
 function updatePriceAndInfo(method) {
   const priceDisplay = document.getElementById('priceDisplay');
   const discountBadge = document.getElementById('discountBadge');
   const bankAccountDiv = document.getElementById('bankAccountInfo');
   const bankProofDiv = document.getElementById('bankProofDiv');
   const autoDiv = document.getElementById('autoPaymentInfo');
-
   if (method === 'bank') {
     const originalLocal = selectedBook.price * USD_TO_LOCAL;
     const discountedLocal = originalLocal * (1 - DISCOUNT_RATE);
-    priceDisplay.innerHTML = `
-      <div style="margin:10px 0;">
-        <span class="old-price">${originalLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME}</span>
-        <span class="new-price">${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME} (بعد الخصم 30%)</span>
-      </div>
-    `;
+    priceDisplay.innerHTML = `<div><span class="old-price">${originalLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME}</span> <span class="new-price">${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME} (بعد الخصم ${DISCOUNT_RATE*100}%)</span></div>`;
     discountBadge.style.display = 'block';
     bankAccountDiv.style.display = 'block';
     bankProofDiv.style.display = 'block';
     autoDiv.style.display = 'none';
-  } 
-  else if (method === 'usdt') {
+  } else if (method === 'usdt') {
     priceDisplay.innerHTML = `<div class="new-price">${selectedBook.price} USDT (بدون خصم)</div>`;
     discountBadge.style.display = 'none';
     bankAccountDiv.style.display = 'none';
     bankProofDiv.style.display = 'none';
     autoDiv.style.display = 'none';
-  }
-  else if (method === 'trx') {
+  } else if (method === 'trx') {
     const trxAmount = selectedBook.price * USD_TO_TRX;
     priceDisplay.innerHTML = `<div class="new-price">${trxAmount.toFixed(2)} TRX (بدون خصم)</div>`;
     discountBadge.style.display = 'none';
@@ -194,49 +258,44 @@ function updatePriceAndInfo(method) {
   btn.innerHTML = 'تأكيد الطلب';
   btn.onclick = createOrder;
 }
-
 document.getElementById('payMethod').addEventListener('change', (e) => {
   if (!selectedBook) return;
   updatePriceAndInfo(e.target.value);
 });
-
 function closeModal() {
   document.getElementById('payModal').classList.remove('active');
   document.getElementById('autoPaymentInfo').style.display = 'none';
   document.getElementById('bankAccountInfo').style.display = 'none';
 }
-
 async function createOrder() {
   const method = document.getElementById('payMethod').value;
   const usdPrice = selectedBook.price;
   let displayAmount = '';
-
   if (method === 'bank') {
     const discountedLocal = (usdPrice * USD_TO_LOCAL) * (1 - DISCOUNT_RATE);
-    displayAmount = `${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME} (بعد الخصم 50%)`;
+    displayAmount = `${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME} (بعد الخصم ${DISCOUNT_RATE*100}%)`;
   } else if (method === 'trx') {
     displayAmount = `${(usdPrice * USD_TO_TRX).toFixed(2)} TRX`;
   } else if (method === 'usdt') {
     displayAmount = `${usdPrice} USDT`;
   }
-
   let proof = null;
   if (method === 'bank') {
     proof = document.getElementById('bankProof').value.trim();
     if (!proof) return showToast('يرجى إدخال رقم الإيصال بعد التحويل');
   }
-
   const res = await api('/api/create-invoice', 'POST', {
     bookId: selectedBook.id,
     method,
     amount: usdPrice,
     proof
   });
-
   if (res.success) {
     if (method === 'bank') {
       alert(`✅ تم إنشاء الطلب رقم: ${res.orderId}\nالمبلغ المطلوب: ${displayAmount}\n\n📌 استخدم هذا الرقم عند التحويل.\nبعد التحويل، سجل رقم الإيصال في حقل الإثبات.`);
       window.location.href = '/orders.html';
+    } else if (res.autoDownload && res.downloadToken) {
+      window.location.href = `/api/download?token=${res.downloadToken}`;
     } else {
       currentOrderId = res.orderId;
       currentMethod = method;
@@ -266,13 +325,10 @@ async function createOrder() {
     showToast('خطأ: ' + res.error);
   }
 }
-
 async function verifyPayment(orderId, method, usdPrice) {
   showToast('جاري التحقق...');
   let expectedAmount = usdPrice;
-  if (method === 'trx') {
-    expectedAmount = usdPrice * USD_TO_TRX;
-  }
+  if (method === 'trx') expectedAmount = usdPrice * USD_TO_TRX;
   try {
     const res = await api('/api/verify-payment', 'POST', { orderId, method, expectedAmount });
     if (res.success && res.approved === true) {
@@ -289,7 +345,5 @@ async function verifyPayment(orderId, method, usdPrice) {
   }
 }
 </script>
-
 </body>
 </html> 
- 
