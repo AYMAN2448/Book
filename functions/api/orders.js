@@ -2,9 +2,9 @@ export async function onRequestGet({ request, env }) {
   const sessionId = request.headers.get('X-Session-Id');
   if (!sessionId) return Response.json({ success: false, orders: [] });
 
-  // 1. جلب جميع طلبات المستخدم
+  // 1. جلب آخر 5 طلبات للمستخدم (من الأحدث إلى الأقدم)
   const ordersResult = await env.DB.prepare(
-    `SELECT * FROM orders WHERE session_id = ? ORDER BY created_at DESC`
+    `SELECT * FROM orders WHERE session_id = ? ORDER BY created_at DESC LIMIT 5`
   ).bind(sessionId).all();
 
   // 2. جلب بيانات الكتب من books.json
@@ -16,16 +16,18 @@ export async function onRequestGet({ request, env }) {
     console.error('Failed to fetch books.json', e);
   }
 
-  // 3. دمج اسم الكتاب مع كل طلب
+  // 3. دمج اسم الكتاب وبياناته مع كل طلب
   const ordersWithBook = ordersResult.results.map(order => {
     const book = books.find(b => b.id == order.book_id);
     return {
       ...order,
       book_title: book ? book.title : 'كتاب غير معروف',
       book_cover: book ? book.cover : '',
-      file_url: order.file_url || (book ? book.file_url : null)
+      file_url: order.file_url || (book ? book.file_url : null),
+      price_usd: order.amount,
+      method: order.method
     };
   });
 
   return Response.json({ success: true, orders: ordersWithBook });
-}
+} 
