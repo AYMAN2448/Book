@@ -4,31 +4,69 @@ export async function onRequestGet({ request, env }) {
   const token = auth.slice(7);
   if (token !== 'secret_admin_token') return Response.json({ success: false }, { status: 401 });
 
-  // جلب الطلبات من قاعدة البيانات
-  const ordersResult = await env.DB.prepare(
-    `SELECT * FROM orders WHERE status IN ('pending', 'pending_review') ORDER BY created_at DESC`
+  const url = new URL(request.url);
+  const page = parseInt(url.searchParams.get('page') || '1');
+  const limit = 10;
+  const offset = (page - 1) * limit;
+
+  // 1. الطلبات المكتملة (آخر 5)
+  const approvedOrders = await env.DB.prepare(
+    `SELECT o.*, b.title as book_title 
+     FROM orders o
+     LEFT JOIN books b ON o.book_id = b.id
+     WHERE o.status = 'approved'
+     ORDER BY o.created_at DESC
+     LIMIT 5`
   ).all();
-  
-  // جلب بيانات الكتب من books.json
-  let books = [];
+
+  // 2. الطلبات المعلقة (pending + pending_review) مع ترحيل
+  const pendingOrders = await env.DB.prepare(
+    `SELECT o.*, b.title as book_title 
+     FROM orders o
+     LEFT JOIN books b ON o.book_id = b.id
+     WHERE o.status IN ('pending', 'pending_review')
+     ORDER BY o.created_at DESC
+     LIMIT ? OFFSET ?`
+  ).bind(limit, offset).all();
+
+  // 3. إجمالي عدد الطلبات المعلقة (لحساب وجود صفحات إضافية)
+  const totalPendingCount = await env.DB.prepare(
+    `SELECT COUNT(*) as count FROM orders WHERE status IN ('pending', 'pending_review')`
+  ).first();
+  const hasMore = offset + limit < (totalPendingCount ? totalPendingCount.count : 0);
+
+  // 4. جلب الكتب المجانية (status = 'approved' AND method = 'free') – للإشعارات
+  const freeOrders = await env.DB.prepare(
+    `SELECT o.*, b.title as book_title 
+     FROM orders o
+     LEFT JOIN books b ON o.book_id = b.id
+     WHERE o.status = 'approved' AND o.method = 'free'
+     ORDER BY o.created_at DESC
+     LIMIT 20`
+  ).all();
+
+  // جلب بيانات الكتب من books.json لضمان ظهور الأسماء (احتياطي)
+  let booksMap = new Map();
   try {
     const booksRes = await fetch('https://' + request.headers.get('host') + '/books.json');
-    books = await booksRes.json();
-  } catch (e) {
-    console.error('Failed to fetch books.json', e);
-  }
+    const books = await booksRes.json();
+    books.forEach(book => booksMap.set(book.id, book.title));
+  } catch (e) { console.error('Failed to fetch books.json', e); }
 
-  // إضافة اسم الكتاب و session_id كمعرف للمستخدم
-  const ordersWithDetails = ordersResult.results.map(order => {
-    const book = books.find(b => b.id == order.book_id);
-    return {
-      ...order,
-      book_title: book ? book.title : 'غير معروف',
-      user_display: order.session_id ? order.session_id.substring(0, 12) + '...' : 'غير معروف'
-    };
+  const enrich = (order) => ({
+    ...order,
+    book_title: order.book_title || booksMap.get(order.book_id) || 'غير معروف',
+    user_display: order.session_id ? order.session_id.substring(0, 12) + '...' : 'غير معروف'
   });
 
-  return Response.json({ success: true, orders: ordersWithDetails });
+  return Response.json({
+    success: true,
+    pending: pendingOrders.results.map(enrich),
+    approved: approvedOrders.results.map(enrich),
+    free: freeOrders.results.map(enrich),
+    hasMore,
+    page
+  });
 }
 
 export async function onRequestPost({ request, env }) {
@@ -42,7 +80,6 @@ export async function onRequestPost({ request, env }) {
   if (!order) return Response.json({ success: false, error: 'الطلب غير موجود' });
 
   if (action === 'approve') {
-    // جلب بيانات الكتاب من books.json
     const booksRes = await fetch('https://' + request.headers.get('host') + '/books.json');
     const books = await booksRes.json();
     const book = books.find(b => b.id == order.book_id);
@@ -64,4 +101,4 @@ export async function onRequestPost({ request, env }) {
   } else {
     return Response.json({ success: false, error: 'إجراء غير معروف' });
   }
-}
+} 
