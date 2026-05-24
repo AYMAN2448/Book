@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>مكتبة سديم الرقمية</title>
+<title>مكتبة الكتب الرقمية</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 <style>
@@ -61,9 +61,12 @@
     color: #777;
     margin-bottom: 10px;
   }
-  /* تحسين عرض البطاقات */
+  /* تنسيق البطاقات والأزرار */
   .card {
     padding: 12px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
   }
   .card h3 {
     font-size: 1rem;
@@ -79,19 +82,34 @@
     font-weight: bold;
     margin: 6px 0;
   }
+  /* جعل الأزرار بجانب بعضها دائماً */
+  .card-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    margin-top: auto;
+    justify-content: space-between;
+  }
   .card-buttons .btn {
+    flex: 1;
     padding: 6px 10px;
     font-size: 0.75rem;
+    text-align: center;
+    white-space: nowrap;
   }
-  @media (max-width: 768px) {
-    .search-container { max-width: 90%; }
-    #searchInput { font-size: 0.85rem; padding: 10px 16px; }
+  /* تحسينات للشاشات الصغيرة جداً */
+  @media (max-width: 480px) {
+    .card-buttons .btn {
+      font-size: 0.7rem;
+      padding: 5px 6px;
+      white-space: normal;
+    }
   }
 </style>
 </head>
 <body>
 <header>
-  <h2>مكتبة سديم للكتب الإلكترونية</h2>
+  <h2> سديم للكتب الإلكترونية</h2>
   <nav>
     <a href="/">الرئيسية</a>
     <a href="/books.html">الكتب</a>
@@ -119,7 +137,7 @@
   </div>
 </div>
 
-<!-- مودال الدفع (نفسه) -->
+<!-- مودال الدفع -->
 <div class="modal" id="payModal">
   <div class="modal-content">
     <h3>اختر طريقة الدفع</h3>
@@ -130,7 +148,7 @@
     </select>
     <div id="priceDisplay"></div>
     <div id="bankAccountInfo" style="display:none;">
-      <div class="discount-badge" id="discountBadge">🎉 عرض خاص! خصم 50% على الدفع بالعملة المحلية (ج.س) 🎉</div>
+      <div class="discount-badge" id="discountBadge">🎉 عرض خاص! خصم 30% على الدفع بالعملة المحلية (ج.س) 🎉</div>
       <div class="info-block">
         <h4>📱 تحويل كاشي (Cash):</h4>
         <p><strong>رقم الحساب:</strong> 401951393</p>
@@ -150,11 +168,11 @@
 
 <script src="/script.js"></script>
 <script>
-// ========== إعدادات سعر الصرف والخصم ==========
+// ========== إعدادات سعر الصرف والخصم (تم تغيير الخصم إلى 30%) ==========
 const USD_TO_LOCAL = 4000;
 const LOCAL_CURRENCY_NAME = "ج.س";
 const USD_TO_TRX = 6.7;
-const DISCOUNT_RATE = 0.3;
+const DISCOUNT_RATE = 0.3;   // خصم 30% (عدل من 0.5 إلى 0.3)
 const CRYPTO_ADDRESS = "TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L";
 
 let selectedBook = null;
@@ -179,7 +197,6 @@ function showToast(msg) {
   setTimeout(() => toast.style.display = 'none', 2000);
 }
 
-// دالة مشاركة الكتاب
 function shareBook(bookId, bookTitle, bookPrice) {
   const url = `${window.location.origin}/book.html?id=${bookId}`;
   const shareText = `📚 ${bookTitle}${bookPrice > 0 ? ` - السعر: ${bookPrice} $` : ' (مجاني)'}\nلشراء الكتاب، افتح الرابط: ${url}`;
@@ -190,7 +207,6 @@ function shareBook(bookId, bookTitle, bookPrice) {
   }
 }
 
-// تحميل كتاب مجاني مباشرة
 async function downloadFreeBook(bookId) {
   showToast('جاري تجهيز الكتاب المجاني...');
   try {
@@ -210,7 +226,6 @@ async function downloadFreeBook(bookId) {
   }
 }
 
-// عرض الكتب مع دعم المجاني والتصفح
 function renderPage() {
   const start = (currentPage - 1) * BOOKS_PER_PAGE;
   const end = start + BOOKS_PER_PAGE;
@@ -243,7 +258,6 @@ function renderPage() {
     }).join('');
   }
   
-  // تحديث أزرار التصفح
   const totalPages = Math.ceil(allBooks.length / BOOKS_PER_PAGE);
   document.getElementById('pageInfo').innerText = `الصفحة ${currentPage} من ${totalPages || 1}`;
   document.getElementById('prevPageBtn').disabled = (currentPage === 1);
@@ -259,7 +273,6 @@ function changePage(delta) {
   }
 }
 
-// تحميل الكتب والبحث مع إعادة ضبط التصفح
 function loadBooksAndRender() {
   fetch('/books.json')
     .then(r => r.json())
@@ -267,7 +280,6 @@ function loadBooksAndRender() {
       allBooks = books;
       currentPage = 1;
       renderPage();
-      // ربط حدث البحث
       const searchInput = document.getElementById('searchInput');
       if (searchInput) {
         searchInput.addEventListener('input', () => {
@@ -289,7 +301,7 @@ function loadBooksAndRender() {
 
 loadBooksAndRender();
 
-// ========== دوال الدفع (كما هي) ==========
+// دوال الدفع (تستخدم DISCOUNT_RATE الجديد)
 function openModal(book) {
   selectedBook = book;
   const method = document.getElementById('payMethod').value;
@@ -417,4 +429,4 @@ async function verifyPayment(orderId, method, usdPrice) {
 }
 </script>
 </body>
-</html>
+</html> 
