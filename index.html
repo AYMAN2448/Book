@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>مكتبة الكتب الرقمية</title>
+<title>مكتبة سديم الرقمية</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 <style>
   /* تنسيقات مخصصة */
   .search-container { margin: 20px auto; text-align: center; max-width: 600px; width: 100%; }
-  #searchInput { width: 100%; padding: 12px 20px; font-size: 1rem; border-radius: 50px; border: 1px solid #ddd; transition: all 0.3s; }
+  #searchInput { width: 100%; padding: 12px 20px; font-size: 0.5rem; border-radius: 50px; border: 1px solid #ddd; transition: all 0.3s; }
   #searchInput:focus { border-color: #e94560; outline: none; box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
   .pagination { display: flex; justify-content: center; gap: 15px; margin-top: 30px; margin-bottom: 20px; }
   .pagination button { background: #e94560; color: white; border: none; padding: 8px 20px; border-radius: 30px; cursor: pointer; font-size: 0.9rem; font-weight: bold; }
@@ -54,7 +54,7 @@
     <a href="/">الرئيسية</a>
     <a href="/books.html">الكتب</a>
     <a href="/orders.html">طلباتي</a>
-    <a href="/admin-login.html">الأدمن</a>
+    
   </nav>
 </header>
 
@@ -78,7 +78,7 @@
   <div class="modal-content">
     <h3>اختر طريقة الدفع</h3>
     <select id="payMethod">
-      <option value="bank">تحويل كاشي (يدوي) - عملة محلية</option>
+      <option value="bank">تحويل كاشي (يدوي) -  ج.س</option>
       <option value="usdt">USDT (تحقق تلقائي)</option>
       <option value="trx">TRX (تحقق تلقائي)</option>
     </select>
@@ -89,11 +89,11 @@
         <h4>📱 تحويل كاشي (Cash):</h4>
         <p><strong>رقم الحساب:</strong> 401951393</p>
         <p><strong>اسم صاحب الحساب:</strong> لبني احمد سعيد</p>
-        <p><strong>ملاحظة:</strong> اذكر رقم الطلب عند الإرسال</p>
+        
       </div>
     </div>
     <div id="bankProofDiv" style="display:none;">
-      <label>رقم الإيصال / معرف التحويل:</label>
+      <label>رقم الإيصال / معرف المعاملة:</label>
       <input type="text" id="bankProof" placeholder="أدخل رقم الإيصال بعد التحويل">
     </div>
     <div id="autoPaymentInfo" style="display:none; background:#f0f0f0; padding:10px; border-radius:8px; margin:10px 0;"></div>
@@ -301,7 +301,7 @@ async function createOrder() {
   let proof = null;
   if (method === 'bank') {
     proof = document.getElementById('bankProof').value.trim();
-    if (!proof) return showToast('يرجى إدخال رقم الإيصال بعد التحويل');
+    if (!proof) return showToast('يرجى إدخال رقم المعاملة بعد التحويل');
   }
   const res = await api('/api/create-invoice', 'POST', {
     bookId: selectedBook.id,
