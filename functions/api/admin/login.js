@@ -4,6 +4,7 @@ export async function onRequestPost({ request, env }) {
   if (!admin || admin.password !== password) {
     return Response.json({ success: false }, { status: 401 });
   }
-  const token = btoa(username + ':' + Date.now());
+  // استخدام التوكن الثابت الذي يتحقق منه orders.js
+  const token = 'secret_admin_token';
   return Response.json({ success: true, token, username });
 }
