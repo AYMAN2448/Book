@@ -2,13 +2,8 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-  <meta name="description" content="مكتبة الكتب الرقمية – اشترِ كتبك المفضلة وادفع بعملات رقمية أو تحويل كاشي مع خصم يصل إلى 50%.">
-<meta name="keywords" content="كتب, مكتبة, كتب رقمية, شراء كتب, تحميل كتب, TRX, USDT, كاشي">
-<meta name="author" content="Book4ever">
-<meta name="robots" content="index, follow">
-<link rel="canonical" href="https://your-site.pages.dev/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>الكتب - مكتبة سديم </title>
+<title>جاري تحميل الكتاب...</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 <style>
@@ -20,34 +15,31 @@
   .discount-badge { background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; padding: 12px; border-radius: 12px; text-align: center; margin: 15px 0; font-weight: bold; }
   .old-price { text-decoration: line-through; color: #999; margin-left: 8px; }
   .new-price { color: #27ae60; font-weight: bold; font-size: 1.3rem; }
-  .card-buttons { display: flex; gap: 10px; margin-top: 10px; }
-  .card-buttons .btn { flex: 1; margin: 0; }
-  .share-btn { background: #4a6fa5; }
-  .share-btn:hover { background: #3a5a8a; }
+  .book-detail { max-width: 600px; margin: 0 auto; }
+  .book-detail img { width: 100%; border-radius: 12px; margin-bottom: 20px; }
 </style>
 </head>
 <body>
 <header>
-  <h2>مكتبة سديم للكتب الالكترونية</h2>
+  <h2>مكتبة سديم للكتب الإلكترونية </h2>
   <nav>
     <a href="/">الرئيسية</a>
-    <a href="/research.html">بحوث علمية</a>
+    <a href="/books.html">الكتب</a>
     <a href="/orders.html">طلباتي</a>
+    
   </nav>
-  <div id="google_translate_element" style="display: inline-block; margin-right: 15px;"></div>
 </header>
 
-<div class="container">
-  <h2>الكتب المتاحة</h2>
-  <div class="grid" id="booksGrid"></div>
+<div class="container book-detail">
+  <div id="bookDetailContent">جاري تحميل الكتاب...</div>
 </div>
 
-<!-- مودال الدفع (نفس الموجود في index.html) -->
+<!-- مودال الدفع -->
 <div class="modal" id="payModal">
   <div class="modal-content">
     <h3>اختر طريقة الدفع</h3>
     <select id="payMethod">
-      <option value="bank">تحويل كاشي (يدوي) - عملة محلية</option>
+      <option value="bank">تحويل كاشي (يدوي) - جنيه سوداني </option>
       <option value="usdt">USDT (تحقق تلقائي)</option>
       <option value="trx">TRX (تحقق تلقائي)</option>
     </select>
@@ -70,14 +62,11 @@
     <button class="btn" style="background:#ccc; color:#333;" onclick="closeModal()">إلغاء</button>
   </div>
 </div>
-<a href="https://www.facebook.com/profile.php?id=61590391556021" target="_blank" class="telegram-contact">
-  <img src="https://cdn-icons-png.flaticon.com/512/2111/2111646.png" alt="Telegram" style="width:15px; height:15px;">
-  📩 تواصل & بلاغ
-</a>
+
 <script src="/script.js"></script>
 <script>
 // ========== إعدادات سعر الصرف والخصم ==========
-const USD_TO_LOCAL = 4000;
+const USD_TO_LOCAL = 4100;
 const LOCAL_CURRENCY_NAME = "ج.س";
 const USD_TO_TRX = 6.7;
 const DISCOUNT_RATE = 0.3;
@@ -87,6 +76,7 @@ let selectedBook = null;
 let currentOrderId = null;
 let currentMethod = null;
 
+// ========== دوال مساعدة ==========
 function copyToClipboard(text) {
   navigator.clipboard.writeText(text).then(() => showToast('✅ تم نسخ العنوان')).catch(() => showToast('❌ فشل النسخ'));
 }
@@ -102,42 +92,91 @@ function showToast(msg) {
   setTimeout(() => toast.style.display = 'none', 2000);
 }
 
-// دالة مشاركة الكتاب
-function shareBook(bookId, bookTitle, bookPrice) {
-  const url = `${window.location.origin}/book.html?id=${bookId}`;
-  const shareText = `📚 ${bookTitle} - السعر: ${bookPrice} $\nلشراء الكتاب، افتح الرابط: ${url}`;
-  if (navigator.share) {
-    navigator.share({
-      title: bookTitle,
-      text: shareText,
-      url: url
-    }).catch(e => console.log(e));
-  } else {
-    navigator.clipboard.writeText(shareText).then(() => showToast('📋 تم نسخ رابط الكتاب'));
+// ========== استخراج معرف الكتاب من الرابط (يدعم /book/id و ?id=id) ==========
+function getBookIdFromUrl() {
+  const path = window.location.pathname;
+  const parts = path.split('/');
+  // الحالة المفضلة: /book/123
+  if (parts.length >= 3 && parts[1] === 'book') {
+    return parseInt(parts[2]);
+  }
+  // الحالة القديمة: ?id=123
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (id) return parseInt(id);
+  // الحالة غير القياسية: /book=123 (لمعالجة أخطاء قديمة)
+  const match = path.match(/\/book=(\d+)/);
+  if (match) return parseInt(match[1]);
+  return null;
+}
+
+// ========== تحميل وعرض الكتاب مع تحسين SEO ==========
+async function loadBook() {
+  const bookId = getBookIdFromUrl();
+  if (!bookId) {
+    document.getElementById('bookDetailContent').innerHTML = '<p style="color:red;">رابط غير صالح. يرجى العودة إلى <a href="/">الرئيسية</a>.</p>';
+    return;
+  }
+  try {
+    const res = await fetch('/books.json');
+    const books = await res.json();
+    const book = books.find(b => b.id == bookId);
+    if (!book) throw new Error('الكتاب غير موجود');
+    selectedBook = book;
+
+    // 1. تحديث عنوان الصفحة والوصف
+    document.title = `${book.title} - مكتبة الكتب الرقمية`;
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.name = 'description';
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.content = `${book.title} - كتاب من تأليف ${book.author || 'غير معروف'}. السعر: ${book.price} دولار. اشتري الكتاب الآن وادفع بعملات رقمية أو تحويل كاشي مع خصم 50%.`;
+
+    // 2. إضافة بيانات مهيكلة (JSON-LD) لتحسين ظهور الكتاب في بحث Google
+    const jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "Book",
+      "name": book.title,
+      "author": { "@type": "Person", "name": book.author || "غير معروف" },
+      "description": book.description || `كتاب ${book.title} للمؤلف ${book.author}`,
+      "offers": {
+        "@type": "Offer",
+        "price": book.price,
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock",
+        "url": window.location.href
+      }
+    };
+    const oldScript = document.querySelector('script[type="application/ld+json"]');
+    if (oldScript) oldScript.remove();
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.textContent = JSON.stringify(jsonLd);
+    document.head.appendChild(script);
+
+    // 3. عرض محتوى الكتاب في الصفحة
+    document.getElementById('bookDetailContent').innerHTML = `
+      <div class="card">
+        <img src="${book.cover}" alt="${book.title}">
+        <h2>${book.title}</h2>
+        <p>المؤلف: ${book.author || 'غير معروف'}</p>
+        <p>السعر: ${book.price} $</p>
+        <p>الوصف: ${book.description || ''}</p>
+        <button class="btn" onclick="openModal()">شراء الآن</button>
+        <br><br>
+        <a href="/books.html">← العودة إلى المكتبة</a>
+      </div>
+    `;
+  } catch (err) {
+    document.getElementById('bookDetailContent').innerHTML = `<p style="color:red;">حدث خطأ: ${err.message}</p>`;
   }
 }
 
-fetch('/books.json')
-  .then(r => r.json())
-  .then(books => {
-    const grid = document.getElementById('booksGrid');
-    if (!grid) return;
-    grid.innerHTML = books.map(book => `
-      <div class="card">
-        <img src="${book.cover}" style="width:100%; border-radius:8px;">
-        <h3>${book.title}</h3>
-        <p>السعر: ${book.price} $</p>
-        <div class="card-buttons">
-          <button class="btn" onclick='openModal(${JSON.stringify(book).replace(/"/g, '&quot;')})'>شراء</button>
-          <button class="btn share-btn" onclick="shareBook(${book.id}, '${book.title.replace(/'/g, "\\'")}', ${book.price})">📤 مشاركة</button>
-        </div>
-      </div>
-    `).join('');
-  }).catch(e => console.error(e));
-
-// باقي دوال الدفع (نفس ما في index.html)
-function openModal(book) {
-  selectedBook = book;
+// ========== دوال الدفع (مودال) ==========
+function openModal() {
+  if (!selectedBook) return;
   const method = document.getElementById('payMethod').value;
   updatePriceAndInfo(method);
   document.getElementById('payModal').classList.add('active');
@@ -180,6 +219,7 @@ function updatePriceAndInfo(method) {
     bankProofDiv.style.display = 'none';
     autoDiv.style.display = 'none';
   }
+
   const btn = document.getElementById('confirmPayBtn');
   btn.innerHTML = 'تأكيد الطلب';
   btn.onclick = createOrder;
@@ -278,6 +318,9 @@ async function verifyPayment(orderId, method, usdPrice) {
     showToast('⚠️ خطأ في الاتصال بالخادم: ' + err.message);
   }
 }
+
+// تشغيل تحميل الكتاب عند بدء الصفحة
+loadBook();
 </script>
 </body>
 </html> 

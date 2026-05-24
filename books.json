@@ -2,7 +2,7 @@
   {
     "id": 1,
     "title": "سجون المهد",
-    "author": "د. اوشيك ادم علي ",
+    "author": "د. عزام عبدالله ابراهيم",
     "description": " سجون المهد کتاب سيغير نظرتك لكل ما تعتقد أنك تعرفه عن التربية والطفولة و السودان. ",
     "price": 3,
     "cover": "https://i.imgur.com/0peOdC6.jpg",
@@ -12,19 +12,10 @@
   {
     "id": 2,
     "title": " تاريخ قبائل البجا في السودان ",
-    "author": "د.عبدالله على ابراهيم ",
+    "author": "د. اوشيك ادم علي ",
     "description": "مؤلف هذا الكتاب هو الاداري البريطاني يول الذي الم بالبجا الماماً واسعاً", 
     "price": 2,
     "cover": "https://i.imgur.com/IcfKcd3.jpg",
     "file_url": "https://files.catbox.moe/w4zha1.pdf"
-  },
-  {
-    "id": 3,
-    "title": " الرق في السودان نحو انثروبولجيا الخبر ",
-    "author": "د. عبدالله علي ابراهيم ",
-    "description": "يتناول الكتاب عرض لكتاب بلدو وعشاري نشر في جريدة الايام السودانية في خريف 1987، وهو دراسة للعلاقات العرقية في السودان ", 
-    "price": 0,
-    "cover": "https://i.imgur.com/6WQRZZR.jpg",
-    "file_url": "https://drive.google.com/uc?export=download&id=1yx-sm2uffLSfQNC76aTHXm-wVGaBjaL4"
   } 
 ]

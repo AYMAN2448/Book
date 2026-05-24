@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>دخول الأدمن</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="container" style="max-width:400px; margin-top:100px;">
+  <div class="card">
+    <h3>دخول لوحة التحكم</h3>
+    <input type="text" id="username" placeholder="اسم المستخدم">
+    <input type="password" id="password" placeholder="كلمة السر">
+    <button class="btn" onclick="login()">دخول</button>
+  </div>
+</div>
+<script>
+async function login() {
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  const res = await fetch('/api/admin/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  });
+  const data = await res.json();
+  if (data.success) {
+    localStorage.setItem('admin_token', data.token);
+    location.href = '/admin.html';
+  } else {
+    alert('بيانات خاطئة');
+  }
+}
+</script>
+</body>
+</html>

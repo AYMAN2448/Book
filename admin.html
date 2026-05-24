@@ -6,112 +6,51 @@
 <title>لوحة التحكم</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
-<style>
-  .section { margin-bottom: 30px; }
-  .section-title { background: #1a1a2e; color: white; padding: 8px 12px; border-radius: 8px; margin-bottom: 15px; }
-  .completed { border-right: 4px solid #00b894; }
-  .timestamp { font-size: 0.7rem; color: #777; margin-top: 5px; }
-  .load-more-btn { display: block; width: 100%; margin-top: 15px; }
-  .admin-name { font-weight: bold; margin-left: 15px; color: #e94560; background: #f0f0f0; padding: 5px 10px; border-radius: 20px; }
-</style>
 </head>
 <body>
 <header>
   <h2>لوحة التحكم</h2>
-  <div style="display: flex; align-items: center; gap: 10px;">
-    <span class="admin-name" id="adminName">⚙️ جاري التحميل...</span>
-    <button class="btn" onclick="logout()" style="background:#ccc; color:#333;">خروج</button>
-  </div>
+  <button class="btn" onclick="logout()" style="background:#ccc; color:#333;">خروج</button>
 </header>
 <div class="container">
-  <div class="section">
-    <div class="section-title">⏳ الطلبات المعلقة (تحتاج موافقة)</div>
-    <div id="pendingOrdersList"></div>
-  </div>
-  <div class="section">
-    <div class="section-title">✅ الطلبات المكتملة (آخر 10)</div>
-    <div id="completedOrdersList"></div>
-    <button id="loadMoreBtn" class="btn load-more-btn" style="display:none;">التالي 📄</button>
-  </div>
+  <h3>الطلبات المعلقة</h3>
+  <div id="ordersList"></div>
 </div>
 
 <script>
 const token = localStorage.getItem('admin_token');
-const adminUsername = localStorage.getItem('admin_username');
-if (!token) {
-  location.href = '/admin-login.html';
-} else {
-  document.getElementById('adminName').innerHTML = `👤 مرحباً ${adminUsername || 'مشرف'}`;
-}
+if (!token) location.href = '/admin-login.html';
 
-let currentPage = 1;
-let isLoading = false;
-
-async function loadOrders(append = false) {
-  if (isLoading) return;
-  isLoading = true;
-  
-  const res = await fetch(`/api/admin/orders?page=${currentPage}`, {
+async function loadOrders() {
+  const res = await fetch('/api/admin/orders', {
     headers: { 'Authorization': 'Bearer ' + token }
   });
   const data = await res.json();
   if (!data.success) {
     localStorage.removeItem('admin_token');
-    localStorage.removeItem('admin_username');
     location.href = '/admin-login.html';
     return;
   }
-
-  if (!append) {
-    const pendingDiv = document.getElementById('pendingOrdersList');
-    if (!data.pending.length) {
-      pendingDiv.innerHTML = '<p>لا توجد طلبات معلقة</p>';
-    } else {
-      pendingDiv.innerHTML = data.pending.map(o => `
-        <div class="card">
-          <h4>📖 الكتاب: ${o.book_title || 'غير معروف'}</h4>
-          <p>💰 المبلغ: ${o.amount} $</p>
-          <p>🔢 رقم الطلب: ${o.id}</p>
-          <p>📱 طريقة الدفع: ${o.method === 'bank' ? 'تحويل كاشي' : o.method.toUpperCase()}</p>
-          <p>📝 الحالة: <span class="status ${o.status}">${o.status === 'pending' ? 'قيد الانتظار' : 'مراجعة'}</span></p>
-          ${o.proof ? `<p>🧾 رقم الإيصال: <strong>${o.proof}</strong></p>` : ''}
-          <div style="margin-top:10px;">
-            <button class="btn" onclick="updateOrder(${o.id}, 'approve')">✅ موافقة</button>
-            <button class="btn" onclick="updateOrder(${o.id}, 'reject')" style="background:#d63031;">❌ رفض</button>
-          </div>
-        </div>
-      `).join('');
-    }
+  const list = document.getElementById('ordersList');
+  if (!data.orders.length) {
+    list.innerHTML = '<p>لا توجد طلبات معلقة</p>';
+    return;
   }
-
-  const completedDiv = document.getElementById('completedOrdersList');
-  if (!append) completedDiv.innerHTML = '';
-  if (data.completed.length === 0 && !append) {
-    completedDiv.innerHTML = '<p>لا توجد طلبات مكتملة بعد</p>';
-  } else {
-    completedDiv.innerHTML += data.completed.map(o => `
-      <div class="card completed">
-        <h4>📖 الكتاب: ${o.book_title || 'غير معروف'}</h4>
-        <p>💰 المبلغ: ${o.amount} $</p>
-        <p>📱 طريقة الدفع: ${o.method === 'bank' ? 'تحويل كاشي' : o.method.toUpperCase()}</p>
-        <p>✅ الحالة: تمت الموافقة</p>
-        <div class="timestamp">📅 تم الإتمام: ${new Date(o.updated_at).toLocaleString('ar-EG')}</div>
+  list.innerHTML = data.orders.map(o => `
+    <div class="card">
+      <h4>📖 الكتاب: ${o.book_title}</h4>
+      <p>👤 المستخدم: ${o.user_display || 'غير معروف'}</p>
+      <p>💰 المبلغ: ${o.amount} $</p>
+      <p>🔢 رقم الطلب: ${o.id}</p>
+      <p>📱 طريقة الدفع: ${o.method === 'bank' ? 'تحويل كاشي' : o.method.toUpperCase()}</p>
+      <p>📝 الحالة: <span class="status ${o.status}">${o.status === 'pending' ? 'قيد الانتظار' : 'مراجعة'}</span></p>
+      ${o.proof ? `<p>🧾 رقم الإيصال / المعرف: <strong>${o.proof}</strong></p>` : ''}
+      <div style="margin-top:10px;">
+        <button class="btn" onclick="updateOrder(${o.id}, 'approve')">✅ موافقة</button>
+        <button class="btn" onclick="updateOrder(${o.id}, 'reject')" style="background:#d63031;">❌ رفض</button>
       </div>
-    `).join('');
-  }
-
-  const loadMoreBtn = document.getElementById('loadMoreBtn');
-  if (data.hasMore) {
-    loadMoreBtn.style.display = 'block';
-  } else {
-    loadMoreBtn.style.display = 'none';
-  }
-  isLoading = false;
-}
-
-function loadMore() {
-  currentPage++;
-  loadOrders(true);
+    </div>
+  `).join('');
 }
 
 async function updateOrder(orderId, action) {
@@ -126,8 +65,7 @@ async function updateOrder(orderId, action) {
   const data = await res.json();
   if (data.success) {
     alert('تم التحديث');
-    currentPage = 1;
-    loadOrders(false);
+    loadOrders();
   } else {
     alert('خطأ: ' + data.error);
   }
@@ -135,12 +73,9 @@ async function updateOrder(orderId, action) {
 
 function logout() {
   localStorage.removeItem('admin_token');
-  localStorage.removeItem('admin_username');
   location.href = '/admin-login.html';
 }
-
-loadOrders(false);
-document.getElementById('loadMoreBtn').addEventListener('click', loadMore);
+loadOrders();
 </script>
 </body>
 </html> 
