@@ -1,30 +1,133 @@
-export async function onRequestGet({ request, env }) {
-  const sessionId = request.headers.get('X-Session-Id');
-  if (!sessionId) return Response.json({ success: false, orders: [] });
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>طلباتي - مكتبة الكتب</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <h2>مكتبة سديم للكتب الالكترونية</h2>
+  <nav>
+    <a href="/">الرئيسية</a>
+    <a href="/books.html">الكتب</a>
+  </nav>
+</header>
+<div class="container">
+  <h2>طلباتي</h2>
+  <div id="ordersList"></div>
+</div>
 
-  // 1. جلب الطلبات من قاعدة البيانات
-  const ordersResult = await env.DB.prepare(
-    `SELECT * FROM orders WHERE session_id = ? ORDER BY created_at DESC LIMIT 5`
-  ).bind(sessionId).all();
+<!-- مودال رفع الإيصال -->
+<div class="modal" id="proofModal">
+  <div class="modal-content">
+    <h3>رفع إثبات الدفع</h3>
+    <input type="text" id="proofNumber" placeholder="رقم الإيصال">
+    <button class="btn" onclick="submitProof()">إرسال</button>
+    <button class="btn" onclick="closeProofModal()">إلغاء</button>
+  </div>
+</div>
 
-  // 2. جلب بيانات الكتب من books.json
-  let books = [];
-  try {
-    const booksRes = await fetch('https://' + request.headers.get('host') + '/books.json');
-    books = await booksRes.json();
-  } catch (e) {
-    console.error('Failed to fetch books.json', e);
+<!-- مودال استكمال الدفع -->
+<div class="modal" id="resumePaymentModal">
+  <div class="modal-content">
+    <h3>استكمال الدفع</h3>
+    <div id="resumePaymentInfo"></div>
+    <button class="btn" id="verifyResumeBtn" onclick="verifyResumePayment()">🔍 تحققت من الدفع</button>
+    <button class="btn" style="background:#ccc; color:#333;" onclick="closeResumeModal()">إلغاء</button>
+  </div>
+</div>
+
+<script src="/script.js"></script>
+<script>
+let currentOrderId = null;
+let resumeOrderId = null;
+let resumeMethod = null;
+let resumeAmount = null;
+
+loadOrders();
+
+async function loadOrders() {
+  const res = await api('/api/orders');
+  if (!res.success) return;
+  const orders = res.orders;
+  const list = document.getElementById('ordersList');
+  if (!orders.length) {
+    list.innerHTML = '<p>لا توجد طلبات بعد</p>';
+    return;
   }
 
-  // 3. دمج اسم الكتاب مع كل طلب
-  const ordersWithBooks = ordersResult.results.map(order => {
-    const book = books.find(b => b.id == order.book_id);
-    return {
-      ...order,
-      book_title: book ? book.title : 'غير معروف',
-      file_url: order.file_url || (book ? book.file_url : null)
-    };
-  });
+  list.innerHTML = orders.map(o => `
+    <div class="card">
+      <h3>${o.book_title || 'كتاب غير معروف'}</h3>
+      <p>الطريقة: ${o.method} | المبلغ: ${o.amount} $</p>
+      <p>الحالة: <span class="status ${o.status}">${
+        o.status === 'pending' ? 'قيد الانتظار' :
+        o.status === 'pending_review' ? 'مراجعة' :
+        o.status === 'approved' ? 'تمت الموافقة' : 'مرفوض'
+      }</span></p>
+      ${o.status === 'approved' && o.download_token && o.token_expires_at && new Date(o.token_expires_at) > new Date() ? 
+        `<a href="/api/download?token=${o.download_token}" target="_blank" class="btn">تحميل الكتاب (رابط مؤقت)</a>` : 
+        (o.status === 'approved' ? '<span class="status">تمت الموافقة، الرابط غير متاح حالياً</span>' : '')
+      }
+      ${(o.status === 'pending' && o.method === 'bank') ? `<button class="btn" onclick="openProofModal(${o.id})">رفع إيصال الدفع</button>` : ''}
+      ${(o.status === 'pending' && (o.method === 'trx' || o.method === 'usdt')) ? `<button class="btn" onclick="openResumeModal(${o.id}, '${o.method}', ${o.amount})">استكمال الدفع</button>` : ''}
+    </div>
+  `).join('');
+}
 
-  return Response.json({ success: true, orders: ordersWithBooks });
-} 
+function openProofModal(id) { currentOrderId = id; document.getElementById('proofModal').classList.add('active'); }
+function closeProofModal() { document.getElementById('proofModal').classList.remove('active'); }
+async function submitProof() {
+  const proof = document.getElementById('proofNumber').value.trim();
+  if (!proof) return toast('أدخل رقم الإيصال');
+  const res = await api('/api/submit-proof', 'POST', { orderId: currentOrderId, proof });
+  if (res.success) { toast('تم رفع الإيصال'); closeProofModal(); loadOrders(); }
+  else toast('خطأ: ' + res.error);
+}
+
+function openResumeModal(orderId, method, amount) {
+  resumeOrderId = orderId;
+  resumeMethod = method;
+  resumeAmount = amount;
+  const address = method === 'trx' ? 'TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L' : '0x1b90069d9503e1931d30a8884080cdf16bd0cded';
+  const infoDiv = document.getElementById('resumePaymentInfo');
+  infoDiv.innerHTML = `
+    <p><strong>✅ رقم الطلب:</strong> ${orderId}</p>
+    <p>أرسل <strong>${amount} ${method.toUpperCase()}</strong> إلى العنوان:</p>
+    <div class="copy-container">
+      <span class="copy-address" onclick="copyToClipboard('${address}')">${address}</span>
+      <button class="copy-btn" onclick="copyToClipboard('${address}')">📋 نسخ</button>
+    </div>
+    <p>📌 اكتب رقم الطلب <strong>${orderId}</strong> في المذكرة (Memo).</p>
+    <p>بعد الإرسال اضغط "تحققت من الدفع".</p>
+  `;
+  document.getElementById('resumePaymentModal').classList.add('active');
+}
+function closeResumeModal() { document.getElementById('resumePaymentModal').classList.remove('active'); }
+async function verifyResumePayment() {
+  if (!resumeOrderId) return;
+  toast('جاري التحقق...');
+  const res = await api('/api/verify-payment', 'POST', { orderId: resumeOrderId, method: resumeMethod });
+  if (res.success && res.approved) {
+    toast('✅ تم تأكيد الدفع! سيتم تحديث الصفحة');
+    closeResumeModal();
+    loadOrders();
+  } else {
+    toast('❌ لم يتم العثور على الدفع. تأكد من المبلغ والمذكرة.');
+  }
+}
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => toast('✅ تم نسخ العنوان')).catch(() => toast('❌ فشل النسخ'));
+}
+function toast(msg) {
+  let t = document.querySelector('.toast-msg');
+  if (!t) { t = document.createElement('div'); t.className = 'toast-msg'; document.body.appendChild(t); }
+  t.innerText = msg; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2000);
+}
+</script>
+</body>
+</html>
