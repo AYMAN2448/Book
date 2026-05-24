@@ -265,7 +265,7 @@ function renderPage() {
     const priceDisplay = isFree ? '<span style="color:#27ae60; font-weight:bold;">🎁 مجاني</span>' : `${book.price} $`;
     let buttonHtml = '';
     if (isFree) {
-      buttonHtml = `<button class="btn" onclick="downloadFreeBook(${book.id})">📥 تحميل مجاني</button>`;
+      buttonHtml = `<button class="btn" onclick="downloadFreeBook(${book.id})">📥 تحميل </button>`;
     } else {
       buttonHtml = `<button class="btn" onclick='openModal(${JSON.stringify(book).replace(/"/g, '&quot;')})'>شراء</button>`;
     }
