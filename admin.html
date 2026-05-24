@@ -6,6 +6,14 @@
 <title>لوحة التحكم</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
+<style>
+  /* إضافة تنسيق بسيط للأقسام (بدون تغيير التصميم العام) */
+  .section { margin-bottom: 30px; }
+  .section-title { background: #1a1a2e; color: white; padding: 8px 12px; border-radius: 8px; margin-bottom: 15px; }
+  .load-more-btn { display: block; width: 100%; margin-top: 15px; background: #e94560; color: white; border: none; padding: 8px; border-radius: 8px; cursor: pointer; }
+  .load-more-btn:disabled { background: #ccc; cursor: not-allowed; }
+  .free-notification { border-right: 4px solid #27ae60; }
+</style>
 </head>
 <body>
 <header>
@@ -13,44 +21,119 @@
   <button class="btn" onclick="logout()" style="background:#ccc; color:#333;">خروج</button>
 </header>
 <div class="container">
-  <h3>الطلبات المعلقة</h3>
-  <div id="ordersList"></div>
+  <!-- قسم تنبيهات الكتب المجانية -->
+  <div class="section">
+    <div class="section-title">📢 تنبيهات التحميل المجاني</div>
+    <div id="freeList"></div>
+  </div>
+
+  <!-- قسم آخر الطلبات المكتملة (آخر 5) -->
+  <div class="section">
+    <div class="section-title">✅ آخر الطلبات المكتملة</div>
+    <div id="approvedList"></div>
+  </div>
+
+  <!-- قسم الطلبات المعلقة مع ترحيل -->
+  <div class="section">
+    <div class="section-title">⏳ الطلبات المعلقة (تحتاج موافقة)</div>
+    <div id="pendingList"></div>
+    <button id="loadMoreBtn" class="load-more-btn" style="display:none;">التالي 📄</button>
+  </div>
 </div>
 
 <script>
 const token = localStorage.getItem('admin_token');
 if (!token) location.href = '/admin-login.html';
 
-async function loadOrders() {
-  const res = await fetch('/api/admin/orders', {
-    headers: { 'Authorization': 'Bearer ' + token }
-  });
-  const data = await res.json();
-  if (!data.success) {
-    localStorage.removeItem('admin_token');
-    location.href = '/admin-login.html';
-    return;
+let currentPage = 1;
+let isLoading = false;
+
+async function loadPending(page = 1, append = false) {
+  if (isLoading) return;
+  isLoading = true;
+  try {
+    const res = await fetch(`/api/admin/orders?page=${page}`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const data = await res.json();
+    if (!data.success) {
+      localStorage.removeItem('admin_token');
+      location.href = '/admin-login.html';
+      return;
+    }
+
+    // عرض تنبيهات الكتب المجانية (مرة واحدة فقط، لا ترحيل)
+    if (!append) {
+      const freeDiv = document.getElementById('freeList');
+      if (data.free && data.free.length) {
+        freeDiv.innerHTML = data.free.map(f => `
+          <div class="card free-notification">
+            <h4>📖 ${f.book_title}</h4>
+            <p>📅 التاريخ: ${new Date(f.created_at).toLocaleString('ar-EG')}</p>
+            <p>🎁 تم تحميله مجاناً</p>
+          </div>
+        `).join('');
+      } else {
+        freeDiv.innerHTML = '<p>لا توجد تنبيهات تحميل مجاني</p>';
+      }
+
+      // عرض آخر 5 طلبات مكتملة
+      const approvedDiv = document.getElementById('approvedList');
+      if (data.approved && data.approved.length) {
+        approvedDiv.innerHTML = data.approved.map(o => `
+          <div class="card">
+            <h4>📖 ${o.book_title}</h4>
+            <p>💰 المبلغ: ${o.amount} $</p>
+            <p>👤 المستخدم: ${o.user_display || 'غير معروف'}</p>
+            <p>📱 طريقة الدفع: ${o.method === 'bank' ? 'تحويل كاشي' : o.method.toUpperCase()}</p>
+            <p>✅ تمت الموافقة بتاريخ: ${new Date(o.updated_at).toLocaleString('ar-EG')}</p>
+          </div>
+        `).join('');
+      } else {
+        approvedDiv.innerHTML = '<p>لا توجد طلبات مكتملة بعد</p>';
+      }
+    }
+
+    // عرض الطلبات المعلقة (ترحيل)
+    const pendingDiv = document.getElementById('pendingList');
+    if (!append) pendingDiv.innerHTML = '';
+    if (data.pending && data.pending.length) {
+      pendingDiv.innerHTML += data.pending.map(o => `
+        <div class="card">
+          <h4>📖 ${o.book_title}</h4>
+          <p>👤 المستخدم: ${o.user_display || 'غير معروف'}</p>
+          <p>💰 المبلغ: ${o.amount} $</p>
+          <p>🔢 رقم الطلب: ${o.id}</p>
+          <p>📱 طريقة الدفع: ${o.method === 'bank' ? 'تحويل كاشي' : o.method.toUpperCase()}</p>
+          <p>📝 الحالة: <span class="status ${o.status}">${o.status === 'pending' ? 'قيد الانتظار' : 'مراجعة'}</span></p>
+          ${o.proof ? `<p>🧾 رقم الإيصال: <strong>${o.proof}</strong></p>` : ''}
+          <div style="margin-top:10px;">
+            <button class="btn" onclick="updateOrder(${o.id}, 'approve')">✅ موافقة</button>
+            <button class="btn" onclick="updateOrder(${o.id}, 'reject')" style="background:#d63031;">❌ رفض</button>
+          </div>
+        </div>
+      `).join('');
+    } else if (!append && !data.pending.length) {
+      pendingDiv.innerHTML = '<p>لا توجد طلبات معلقة</p>';
+    }
+
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    if (data.hasMore) {
+      loadMoreBtn.style.display = 'block';
+      loadMoreBtn.disabled = false;
+    } else {
+      loadMoreBtn.style.display = 'none';
+    }
+    currentPage = data.page;
+  } catch (err) {
+    console.error(err);
+  } finally {
+    isLoading = false;
   }
-  const list = document.getElementById('ordersList');
-  if (!data.orders.length) {
-    list.innerHTML = '<p>لا توجد طلبات معلقة</p>';
-    return;
-  }
-  list.innerHTML = data.orders.map(o => `
-    <div class="card">
-      <h4>📖 الكتاب: ${o.book_title}</h4>
-      <p>👤 المستخدم: ${o.user_display || 'غير معروف'}</p>
-      <p>💰 المبلغ: ${o.amount} $</p>
-      <p>🔢 رقم الطلب: ${o.id}</p>
-      <p>📱 طريقة الدفع: ${o.method === 'bank' ? 'تحويل كاشي' : o.method.toUpperCase()}</p>
-      <p>📝 الحالة: <span class="status ${o.status}">${o.status === 'pending' ? 'قيد الانتظار' : 'مراجعة'}</span></p>
-      ${o.proof ? `<p>🧾 رقم الإيصال / المعرف: <strong>${o.proof}</strong></p>` : ''}
-      <div style="margin-top:10px;">
-        <button class="btn" onclick="updateOrder(${o.id}, 'approve')">✅ موافقة</button>
-        <button class="btn" onclick="updateOrder(${o.id}, 'reject')" style="background:#d63031;">❌ رفض</button>
-      </div>
-    </div>
-  `).join('');
+}
+
+function loadMore() {
+  loadPending(currentPage + 1, true);
 }
 
 async function updateOrder(orderId, action) {
@@ -65,7 +148,9 @@ async function updateOrder(orderId, action) {
   const data = await res.json();
   if (data.success) {
     alert('تم التحديث');
-    loadOrders();
+    // إعادة تحميل جميع الأقسام من الصفحة الأولى
+    currentPage = 1;
+    loadPending(1, false);
   } else {
     alert('خطأ: ' + data.error);
   }
@@ -75,7 +160,12 @@ function logout() {
   localStorage.removeItem('admin_token');
   location.href = '/admin-login.html';
 }
-loadOrders();
+
+// التحميل الأولي
+loadPending(1, false);
+
+// ربط زر التالي
+document.getElementById('loadMoreBtn').addEventListener('click', loadMore);
 </script>
 </body>
 </html> 
