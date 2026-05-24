@@ -203,7 +203,7 @@ async function createOrder() {
 
   if (method === 'bank') {
     const discountedLocal = (usdPrice * USD_TO_LOCAL) * (1 - DISCOUNT_RATE);
-    displayAmount = `${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME} (بعد الخصم 50%)`;
+    displayAmount = `${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME} (بعد الخصم 30%)`;
   } else if (method === 'trx') {
     displayAmount = `${(usdPrice * USD_TO_TRX).toFixed(2)} TRX`;
   } else if (method === 'usdt') {
