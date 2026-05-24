@@ -12,10 +12,19 @@
   {
     "id": 2,
     "title": " تاريخ قبائل البجا في السودان ",
-    "author": "د. اوشيك ادم علي ",
+    "author": "د.عبدالله على ابراهيم ",
     "description": "مؤلف هذا الكتاب هو الاداري البريطاني يول الذي الم بالبجا الماماً واسعاً", 
     "price": 2,
     "cover": "https://i.imgur.com/IcfKcd3.jpg",
     "file_url": "https://files.catbox.moe/w4zha1.pdf"
+  },
+  {
+    "id": 3,
+    "title": " الرق في السودان نحو انثروبولجيا الخبر ",
+    "author": "د. اوشيك ادم علي ",
+    "description": "يتناول الكتاب عرض لكتاب بلدو وعشاري نشر في جريدة الايام السودانية في خريف 1987، وهو دراسة للعلاقات العرقية في السودان ", 
+    "price": 0,
+    "cover": "https://i.imgur.com/6WQRZZR.jpg",
+    "file_url": "https://files.catbox.moe/jiivgl.pdf"
   } 
 ]
