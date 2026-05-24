@@ -67,11 +67,11 @@
 
 <script src="/script.js"></script>
 <script>
-// ========== إعدادات العملات والخصم (يجب أن تطابق القيم في index.html) ==========
+// ========== إعدادات العملات والخصم (يجب أن تتطابق مع القيم في index.html) ==========
 const USD_TO_LOCAL = 4000;      // 1 دولار = 4000 ج.س (يجب مطابقته مع صفحة الدفع)
 const LOCAL_CURRENCY_NAME = "ج.س";
 const USD_TO_TRX = 6.7;         // 1 دولار = 6.7 TRX
-const DISCOUNT_RATE = 0.3;      // خصم 30% للعملة المحلية (غيّره إلى 0.3 إذا كان الخصم 30%)
+const DISCOUNT_RATE = 0.5;      // 🔥 غيّر هذه القيمة إلى 0.3 إذا كان الخصم 30%، أو 0.5 إذا كان 50%
 
 let currentOrderId = null;
 let resumeOrderId = null;
@@ -92,17 +92,15 @@ async function loadOrders() {
 
   list.innerHTML = orders.map(o => {
     let currencyValue = '';
-    let originalPrice = '';
-    let discountText = '';
+    let discountPercent = DISCOUNT_RATE * 100;
 
     if (o.method === 'bank') {
       const originalLocal = o.amount * USD_TO_LOCAL;
       const discountedLocal = originalLocal * (1 - DISCOUNT_RATE);
-      originalPrice = `${originalLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME}`;
       currencyValue = `
-        <span class="old-price">${originalPrice}</span>
+        <span class="old-price">${originalLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME}</span>
         <span class="new-price">${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME}</span>
-        <span style="font-size:0.7rem; color:#e94560;"> (بعد خصم ${DISCOUNT_RATE*100}%)</span>
+        <span style="font-size:0.7rem; color:#e94560;"> (بعد خصم ${discountPercent}%)</span>
       `;
     } else if (o.method === 'usdt') {
       currencyValue = `${o.amount} USDT`;
@@ -143,7 +141,7 @@ async function loadOrders() {
         <p>📌 الحالة: <span class="status ${statusClass}">${statusText}</span></p>
         ${o.status === 'approved' && o.download_token && o.token_expires_at && new Date(o.token_expires_at) > new Date() ? 
           `<a href="/api/download?token=${o.download_token}" target="_blank" class="btn">📥 تحميل الكتاب</a>` : 
-          (o.status === 'approved' ? '<p>⚠️ رابط غير متاح (الرابط متاح لتحميل لمرة واحدة فقط..!! )</p>' : '')
+          (o.status === 'approved' ? '<p>⚠️ رابط التحميل غير متاح حالياً (انتهت صلاحيته)</p>' : '')
         }
         ${(o.status === 'pending' && o.method === 'bank') ? `<button class="btn" onclick="openProofModal(${o.id})">📎 رفع إيصال الدفع</button>` : ''}
         ${(o.status === 'pending' && (o.method === 'trx' || o.method === 'usdt')) ? `<button class="btn" onclick="openResumeModal(${o.id}, '${o.method}', ${o.amount})">🔄 استكمال الدفع</button>` : ''}
@@ -152,7 +150,7 @@ async function loadOrders() {
   }).join('');
 }
 
-// ========== باقي الدوال (نفس السابق) ==========
+// ========== دوال رفع الإيصال ==========
 function openProofModal(id) {
   currentOrderId = id;
   document.getElementById('proofModal').classList.add('active');
@@ -173,6 +171,7 @@ async function submitProof() {
   }
 }
 
+// ========== دوال استكمال الدفع للعملات الرقمية ==========
 function openResumeModal(orderId, method, amount) {
   resumeOrderId = orderId;
   resumeMethod = method;
@@ -210,6 +209,7 @@ async function verifyResumePayment() {
   }
 }
 
+// ========== دوال مساعدة ==========
 function copyToClipboard(text) {
   navigator.clipboard.writeText(text).then(() => toast('✅ تم نسخ العنوان')).catch(() => toast('❌ فشل النسخ'));
 }
@@ -229,6 +229,5 @@ function toast(msg) {
 <footer>
   Powered by Bemo technology
 </footer>
-
 </body>
-</html>
+</html> 
