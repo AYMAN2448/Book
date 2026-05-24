@@ -10,9 +10,11 @@
   /* إضافة تنسيق بسيط للأقسام (بدون تغيير التصميم العام) */
   .section { margin-bottom: 30px; }
   .section-title { background: #1a1a2e; color: white; padding: 8px 12px; border-radius: 8px; margin-bottom: 15px; }
-  .load-more-btn { display: block; width: 100%; margin-top: 15px; background: #e94560; color: white; border: none; padding: 8px; border-radius: 8px; cursor: pointer; }
-  .load-more-btn:disabled { background: #ccc; cursor: not-allowed; }
+  .load-more-btn, .pagination-btn { background: #e94560; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; margin: 5px; }
+  .load-more-btn:disabled, .pagination-btn:disabled { background: #ccc; cursor: not-allowed; }
   .free-notification { border-right: 4px solid #27ae60; }
+  .free-counter { background: #27ae60; color: white; padding: 5px 10px; border-radius: 20px; display: inline-block; margin-bottom: 15px; font-weight: bold; }
+  .pagination-controls { margin-top: 15px; text-align: center; }
 </style>
 </head>
 <body>
@@ -21,23 +23,27 @@
   <button class="btn" onclick="logout()" style="background:#ccc; color:#333;">خروج</button>
 </header>
 <div class="container">
-  <!-- قسم تنبيهات الكتب المجانية -->
+  <!-- عداد الكتب المجانية المحملة -->
+  <div class="free-counter" id="freeCounter">📊 عدد الكتب المجانية المحملة: 0</div>
+
+  <!-- قسم آخر 4 كتب مجانية تم تحميلها -->
   <div class="section">
-    <div class="section-title">📢 تنبيهات التحميل المجاني</div>
+    <div class="section-title">📢 آخر 4 كتب تم تحميلها مجاناً</div>
     <div id="freeList"></div>
   </div>
 
-  <!-- قسم آخر الطلبات المكتملة (آخر 5) -->
+  <!-- قسم الطلبات المكتملة (غير المجانية) – 5 لكل صفحة -->
   <div class="section">
-    <div class="section-title">✅ آخر الطلبات المكتملة</div>
+    <div class="section-title">✅ الطلبات المكتملة (آخر 5)</div>
     <div id="approvedList"></div>
+    <div class="pagination-controls" id="approvedPagination"></div>
   </div>
 
-  <!-- قسم الطلبات المعلقة مع ترحيل -->
+  <!-- قسم الطلبات المعلقة – 10 لكل صفحة -->
   <div class="section">
     <div class="section-title">⏳ الطلبات المعلقة (تحتاج موافقة)</div>
     <div id="pendingList"></div>
-    <button id="loadMoreBtn" class="load-more-btn" style="display:none;">التالي 📄</button>
+    <div class="pagination-controls" id="pendingPagination"></div>
   </div>
 </div>
 
@@ -45,14 +51,14 @@
 const token = localStorage.getItem('admin_token');
 if (!token) location.href = '/admin-login.html';
 
-let currentPage = 1;
-let isLoading = false;
+let currentPendingPage = 1;
+let currentApprovedPage = 1;
+let pendingTotalPages = 1;
+let approvedTotalPages = 1;
 
-async function loadPending(page = 1, append = false) {
-  if (isLoading) return;
-  isLoading = true;
+async function loadData() {
   try {
-    const res = await fetch(`/api/admin/orders?page=${page}`, {
+    const res = await fetch(`/api/admin/orders?pending_page=${currentPendingPage}&approved_page=${currentApprovedPage}`, {
       headers: { 'Authorization': 'Bearer ' + token }
     });
     const data = await res.json();
@@ -62,43 +68,46 @@ async function loadPending(page = 1, append = false) {
       return;
     }
 
-    // عرض تنبيهات الكتب المجانية (مرة واحدة فقط، لا ترحيل)
-    if (!append) {
-      const freeDiv = document.getElementById('freeList');
-      if (data.free && data.free.length) {
-        freeDiv.innerHTML = data.free.map(f => `
-          <div class="card free-notification">
-            <h4>📖 ${f.book_title}</h4>
-            <p>📅 التاريخ: ${new Date(f.created_at).toLocaleString('ar-EG')}</p>
-            <p>🎁 تم تحميله مجاناً</p>
-          </div>
-        `).join('');
-      } else {
-        freeDiv.innerHTML = '<p>لا توجد تنبيهات تحميل مجاني</p>';
-      }
+    // تحديث العداد
+    document.getElementById('freeCounter').innerText = `📊 عدد الكتب المجانية المحملة: ${data.freeTotal}`;
 
-      // عرض آخر 5 طلبات مكتملة
-      const approvedDiv = document.getElementById('approvedList');
-      if (data.approved && data.approved.length) {
-        approvedDiv.innerHTML = data.approved.map(o => `
-          <div class="card">
-            <h4>📖 ${o.book_title}</h4>
-            <p>💰 المبلغ: ${o.amount} $</p>
-            <p>👤 المستخدم: ${o.user_display || 'غير معروف'}</p>
-            <p>📱 طريقة الدفع: ${o.method === 'bank' ? 'تحويل كاشي' : o.method.toUpperCase()}</p>
-            <p>✅ تمت الموافقة بتاريخ: ${new Date(o.updated_at).toLocaleString('ar-EG')}</p>
-          </div>
-        `).join('');
-      } else {
-        approvedDiv.innerHTML = '<p>لا توجد طلبات مكتملة بعد</p>';
-      }
+    // عرض آخر 4 كتب مجانية
+    const freeDiv = document.getElementById('freeList');
+    if (data.free && data.free.length) {
+      freeDiv.innerHTML = data.free.map(f => `
+        <div class="card free-notification">
+          <h4>📖 ${f.book_title}</h4>
+          <p>📅 التاريخ: ${new Date(f.created_at).toLocaleString('ar-EG')}</p>
+          <p>🎁 تم تحميله مجاناً</p>
+        </div>
+      `).join('');
+    } else {
+      freeDiv.innerHTML = '<p>لا توجد كتب مجانية محملة بعد</p>';
     }
 
-    // عرض الطلبات المعلقة (ترحيل)
+    // عرض الطلبات المكتملة (غير المجانية) مع ترحيل
+    const approvedDiv = document.getElementById('approvedList');
+    if (data.approved && data.approved.length) {
+      approvedDiv.innerHTML = data.approved.map(o => `
+        <div class="card">
+          <h4>📖 ${o.book_title}</h4>
+          <p>💰 المبلغ: ${o.amount} $</p>
+          <p>👤 المستخدم: ${o.user_display || 'غير معروف'}</p>
+          <p>📱 طريقة الدفع: ${o.method === 'bank' ? 'تحويل كاشي' : o.method.toUpperCase()}</p>
+          <p>✅ تمت الموافقة بتاريخ: ${new Date(o.updated_at).toLocaleString('ar-EG')}</p>
+        </div>
+      `).join('');
+    } else {
+      approvedDiv.innerHTML = '<p>لا توجد طلبات مكتملة (غير مجانية) بعد</p>';
+    }
+    // حساب عدد الصفحات للطلبات المكتملة
+    approvedTotalPages = Math.ceil(data.approvedTotal / 5);
+    renderApprovedPagination();
+
+    // عرض الطلبات المعلقة مع ترحيل
     const pendingDiv = document.getElementById('pendingList');
-    if (!append) pendingDiv.innerHTML = '';
     if (data.pending && data.pending.length) {
-      pendingDiv.innerHTML += data.pending.map(o => `
+      pendingDiv.innerHTML = data.pending.map(o => `
         <div class="card">
           <h4>📖 ${o.book_title}</h4>
           <p>👤 المستخدم: ${o.user_display || 'غير معروف'}</p>
@@ -113,27 +122,61 @@ async function loadPending(page = 1, append = false) {
           </div>
         </div>
       `).join('');
-    } else if (!append && !data.pending.length) {
+    } else {
       pendingDiv.innerHTML = '<p>لا توجد طلبات معلقة</p>';
     }
-
-    const loadMoreBtn = document.getElementById('loadMoreBtn');
-    if (data.hasMore) {
-      loadMoreBtn.style.display = 'block';
-      loadMoreBtn.disabled = false;
-    } else {
-      loadMoreBtn.style.display = 'none';
-    }
-    currentPage = data.page;
+    // حساب عدد الصفحات للطلبات المعلقة
+    pendingTotalPages = Math.ceil(data.pendingTotal / 10);
+    renderPendingPagination();
   } catch (err) {
     console.error(err);
-  } finally {
-    isLoading = false;
   }
 }
 
-function loadMore() {
-  loadPending(currentPage + 1, true);
+function renderApprovedPagination() {
+  const container = document.getElementById('approvedPagination');
+  if (approvedTotalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+  let html = '<div style="margin-top:10px;">';
+  if (currentApprovedPage > 1) {
+    html += `<button class="pagination-btn" onclick="changeApprovedPage(${currentApprovedPage - 1})">⟪ السابق</button>`;
+  }
+  html += `<span style="margin:0 10px;">الصفحة ${currentApprovedPage} من ${approvedTotalPages}</span>`;
+  if (currentApprovedPage < approvedTotalPages) {
+    html += `<button class="pagination-btn" onclick="changeApprovedPage(${currentApprovedPage + 1})">التالي ⟫</button>`;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function renderPendingPagination() {
+  const container = document.getElementById('pendingPagination');
+  if (pendingTotalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+  let html = '<div style="margin-top:10px;">';
+  if (currentPendingPage > 1) {
+    html += `<button class="pagination-btn" onclick="changePendingPage(${currentPendingPage - 1})">⟪ السابق</button>`;
+  }
+  html += `<span style="margin:0 10px;">الصفحة ${currentPendingPage} من ${pendingTotalPages}</span>`;
+  if (currentPendingPage < pendingTotalPages) {
+    html += `<button class="pagination-btn" onclick="changePendingPage(${currentPendingPage + 1})">التالي ⟫</button>`;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function changeApprovedPage(page) {
+  currentApprovedPage = page;
+  loadData();
+}
+
+function changePendingPage(page) {
+  currentPendingPage = page;
+  loadData();
 }
 
 async function updateOrder(orderId, action) {
@@ -148,9 +191,8 @@ async function updateOrder(orderId, action) {
   const data = await res.json();
   if (data.success) {
     alert('تم التحديث');
-    // إعادة تحميل جميع الأقسام من الصفحة الأولى
-    currentPage = 1;
-    loadPending(1, false);
+    // إعادة تحميل جميع الأقسام مع الصفحة الحالية
+    loadData();
   } else {
     alert('خطأ: ' + data.error);
   }
@@ -162,10 +204,7 @@ function logout() {
 }
 
 // التحميل الأولي
-loadPending(1, false);
-
-// ربط زر التالي
-document.getElementById('loadMoreBtn').addEventListener('click', loadMore);
+loadData();
 </script>
 </body>
 </html> 
