@@ -11,17 +11,32 @@ export async function onRequestPost({ request, env }) {
     if (!book) return Response.json({ success: false, error: 'الكتاب غير موجود' });
 
     let status = 'pending';
-    if (method === 'bank' && proof) {
+    let downloadToken = null;
+    let expiresAt = null;
+
+    // إذا كان الكتاب مجانياً (السعر 0) أو الطريقة "free"
+    if (book.price === 0 || method === 'free') {
+      status = 'approved';
+      downloadToken = crypto.randomUUID();
+      expiresAt = Date.now() + 24 * 60 * 60 * 1000; // صلاحية 24 ساعة
+    } else if (method === 'bank' && proof) {
       status = 'pending_review';
     }
 
     const now = Date.now();
     const result = await env.DB.prepare(
-      `INSERT INTO orders (session_id, book_id, method, amount, status, proof, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(sessionId, bookId, method, amount, status, proof || null, now, now).run();
+      `INSERT INTO orders (session_id, book_id, method, amount, status, proof, download_token, token_expires_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(sessionId, bookId, method, amount, status, proof || null, downloadToken, expiresAt, now, now).run();
 
-    return Response.json({ success: true, orderId: result.meta.last_row_id });
+    const orderId = result.meta.last_row_id;
+
+    if (status === 'approved' && downloadToken) {
+      // إرجاع رابط التحميل مباشرة
+      return Response.json({ success: true, orderId, downloadToken, autoDownload: true });
+    }
+
+    return Response.json({ success: true, orderId });
   } catch (e) {
     return Response.json({ success: false, error: e.message }, { status: 500 });
   }
