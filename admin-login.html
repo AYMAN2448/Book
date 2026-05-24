@@ -17,22 +17,30 @@
 </div>
 <script>
 async function login() {
-  const username = document.getElementById('username').value;
+  const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value;
-  const res = await fetch('/api/admin/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password })
-  });
-  const data = await res.json();
-  if (data.success) {
-    localStorage.setItem('admin_token', data.token);
-    localStorage.setItem('admin_username', data.username);
-    location.href = '/admin.html';
-  } else {
-    alert('بيانات خاطئة');
+  if (!username || !password) {
+    alert('الرجاء إدخال اسم المستخدم وكلمة السر');
+    return;
+  }
+  try {
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      localStorage.setItem('admin_token', data.token);
+      localStorage.setItem('admin_username', data.username);
+      window.location.href = '/admin.html';
+    } else {
+      alert('بيانات خاطئة');
+    }
+  } catch (err) {
+    alert('خطأ في الاتصال: ' + err.message);
   }
 }
 </script>
 </body>
-</html>
+</html> 
