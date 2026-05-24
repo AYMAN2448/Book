@@ -143,7 +143,7 @@ async function loadOrders() {
         <p>📌 الحالة: <span class="status ${statusClass}">${statusText}</span></p>
         ${o.status === 'approved' && o.download_token && o.token_expires_at && new Date(o.token_expires_at) > new Date() ? 
           `<a href="/api/download?token=${o.download_token}" target="_blank" class="btn">📥 تحميل الكتاب</a>` : 
-          (o.status === 'approved' ? '<p>⚠️ رابط التحميل غير متاح حالياً (انتهت صلاحيته)</p>' : '')
+          (o.status === 'approved' ? '<p>⚠️ رابط غير متاح (الرابط متاح لتحميل لمرة واحدة فقط..!! )</p>' : '')
         }
         ${(o.status === 'pending' && o.method === 'bank') ? `<button class="btn" onclick="openProofModal(${o.id})">📎 رفع إيصال الدفع</button>` : ''}
         ${(o.status === 'pending' && (o.method === 'trx' || o.method === 'usdt')) ? `<button class="btn" onclick="openResumeModal(${o.id}, '${o.method}', ${o.amount})">🔄 استكمال الدفع</button>` : ''}
