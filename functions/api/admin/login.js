@@ -4,7 +4,6 @@ export async function onRequestPost({ request, env }) {
   if (!admin || admin.password !== password) {
     return Response.json({ success: false }, { status: 401 });
   }
-  // توليد توكن بسيط (للتوثيق)
   const token = btoa(username + ':' + Date.now());
   return Response.json({ success: true, token, username });
 }
