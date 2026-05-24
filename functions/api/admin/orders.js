@@ -4,31 +4,30 @@ export async function onRequestGet({ request, env }) {
   const token = auth.slice(7);
   if (token !== 'secret_admin_token') return Response.json({ success: false }, { status: 401 });
 
-  // جلب الطلبات من قاعدة البيانات
-  const ordersResult = await env.DB.prepare(
-    `SELECT * FROM orders WHERE status IN ('pending', 'pending_review') ORDER BY created_at DESC`
+  // 1. جلب الطلبات المعلقة (pending / pending_review)
+  const pendingOrders = await env.DB.prepare(
+    `SELECT o.*, b.title as book_title
+     FROM orders o
+     LEFT JOIN books b ON o.book_id = b.id
+     WHERE o.status IN ('pending', 'pending_review')
+     ORDER BY o.created_at DESC`
   ).all();
-  
-  // جلب بيانات الكتب من books.json
-  let books = [];
-  try {
-    const booksRes = await fetch('https://' + request.headers.get('host') + '/books.json');
-    books = await booksRes.json();
-  } catch (e) {
-    console.error('Failed to fetch books.json', e);
-  }
 
-  // إضافة اسم الكتاب و session_id كمعرف للمستخدم
-  const ordersWithDetails = ordersResult.results.map(order => {
-    const book = books.find(b => b.id == order.book_id);
-    return {
-      ...order,
-      book_title: book ? book.title : 'غير معروف',
-      user_display: order.session_id ? order.session_id.substring(0, 12) + '...' : 'غير معروف'
-    };
+  // 2. جلب آخر 10 طلبات مكتملة (approved)
+  const completedOrders = await env.DB.prepare(
+    `SELECT o.*, b.title as book_title
+     FROM orders o
+     LEFT JOIN books b ON o.book_id = b.id
+     WHERE o.status = 'approved'
+     ORDER BY o.created_at DESC
+     LIMIT 10`
+  ).all();
+
+  return Response.json({ 
+    success: true, 
+    pending: pendingOrders.results,
+    completed: completedOrders.results 
   });
-
-  return Response.json({ success: true, orders: ordersWithDetails });
 }
 
 export async function onRequestPost({ request, env }) {
