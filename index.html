@@ -37,7 +37,7 @@
     <a href="/">الرئيسية</a>
     <a href="/books.html">الكتب</a>
     <a href="/orders.html">طلباتي</a>
-    <a href="/admin-login.html">الأدمن</a>
+    
   </nav>
 </header>
 
@@ -71,7 +71,7 @@
       </div>
     </div>
     <div id="bankProofDiv" style="display:none;">
-      <label>رقم الإيصال / معرف التحويل:</label>
+      <label>رقم الإيصال / معرف المعاملة:</label>
       <input type="text" id="bankProof" placeholder="أدخل رقم الإيصال بعد التحويل">
     </div>
     <div id="autoPaymentInfo" style="display:none; background:#f0f0f0; padding:10px; border-radius:8px; margin:10px 0;"></div>
@@ -131,7 +131,7 @@ fetch('/books.json')
     grid.innerHTML = books.map(book => {
       const isFree = (book.price === 0);
       const priceDisplay = isFree ? '<span class="free-badge">🎁 مجاني</span>' : `${book.price} $`;
-      const buttonHtml = isFree ? `<button class="btn free-download-btn" onclick="downloadFreeBook(${book.id})">📥 تحميل مجاني</button>` : `<button class="btn" onclick='openModal(${JSON.stringify(book).replace(/"/g, '&quot;')})'>شراء</button>`;
+      const buttonHtml = isFree ? `<button class="btn free-download-btn" onclick="downloadFreeBook(${book.id})">📥 تحميل </button>` : `<button class="btn" onclick='openModal(${JSON.stringify(book).replace(/"/g, '&quot;')})'>شراء</button>`;
       return `
         <div class="card">
           <img src="${book.cover}" style="width:100%; border-radius:8px;">
