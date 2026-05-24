@@ -30,6 +30,14 @@
     font-weight: bold;
     font-size: 1rem;
   }
+  .free-badge {
+    color: #27ae60;
+    font-weight: bold;
+    background: #e8f5e9;
+    padding: 2px 8px;
+    border-radius: 20px;
+    display: inline-block;
+  }
 </style>
 </head>
 <body>
@@ -67,11 +75,11 @@
 
 <script src="/script.js"></script>
 <script>
-// ========== إعدادات العملات والخصم (يجب أن تتطابق مع القيم في index.html) ==========
-const USD_TO_LOCAL = 4000;      // 1 دولار = 4000 ج.س (يجب مطابقته مع صفحة الدفع)
+// ========== إعدادات العملات والخصم ==========
+const USD_TO_LOCAL = 4000;
 const LOCAL_CURRENCY_NAME = "ج.س";
-const USD_TO_TRX = 6.7;         // 1 دولار = 6.7 TRX
-const DISCOUNT_RATE = 0.3;      // 🔥 غيّر هذه القيمة إلى 0.3 إذا كان الخصم 30%، أو 0.3 إذا كان 30%
+const USD_TO_TRX = 6.7;
+const DISCOUNT_RATE = 0.5;      // خصم 50% للعملة المحلية
 
 let currentOrderId = null;
 let resumeOrderId = null;
@@ -92,15 +100,19 @@ async function loadOrders() {
 
   list.innerHTML = orders.map(o => {
     let currencyValue = '';
-    let discountPercent = DISCOUNT_RATE * 100;
+    let isFree = false;
 
-    if (o.method === 'bank') {
+    // تحديد القيمة المعروضة حسب طريقة الدفع أو إذا كان الكتاب مجانياً
+    if (o.method === 'free' || o.amount === 0) {
+      isFree = true;
+      currencyValue = '<span class="free-badge">🎁 مجاني</span>';
+    } else if (o.method === 'bank') {
       const originalLocal = o.amount * USD_TO_LOCAL;
       const discountedLocal = originalLocal * (1 - DISCOUNT_RATE);
       currencyValue = `
         <span class="old-price">${originalLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME}</span>
         <span class="new-price">${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME}</span>
-        <span style="font-size:0.7rem; color:#e94560;"> (بعد خصم ${discountPercent}%)</span>
+        <span style="font-size:0.7rem; color:#e94560;"> (بعد خصم ${DISCOUNT_RATE*100}%)</span>
       `;
     } else if (o.method === 'usdt') {
       currencyValue = `${o.amount} USDT`;
@@ -111,6 +123,7 @@ async function loadOrders() {
       currencyValue = `${o.amount} $`;
     }
 
+    // حالة الطلب
     let statusText = '';
     let statusClass = '';
     switch (o.status) {
@@ -134,17 +147,32 @@ async function loadOrders() {
         statusText = o.status;
     }
 
+    // عرض رابط التحميل للطلبات المكتملة (مدفوعة أو مجانية)
+    const showDownload = (o.status === 'approved') && o.download_token && o.token_expires_at && new Date(o.token_expires_at) > new Date();
+    const downloadLink = showDownload ? `<a href="/api/download?token=${o.download_token}" target="_blank" class="btn">📥 تحميل الكتاب</a>` : '';
+    const downloadExpired = (o.status === 'approved' && (!o.download_token || (o.token_expires_at && new Date(o.token_expires_at) <= new Date()))) ? '<p>⚠️ رابط التحميل غير متاح حالياً (انتهت صلاحيته)</p>' : '';
+
+    // أزرار الإجراء للطلبات المعلقة
+    let actionButtons = '';
+    if (o.status === 'pending') {
+      if (o.method === 'bank') {
+        actionButtons = `<button class="btn" onclick="openProofModal(${o.id})">📎 رفع إيصال الدفع</button>`;
+      } else if (o.method === 'trx' || o.method === 'usdt') {
+        actionButtons = `<button class="btn" onclick="openResumeModal(${o.id}, '${o.method}', ${o.amount})">🔄 استكمال الدفع</button>`;
+      } else if (o.method === 'free') {
+        // الطلبات المجانية تكون معتمدة مباشرة، لذلك لا تحتاج أزرار
+        actionButtons = '';
+      }
+    }
+
     return `
       <div class="card">
         <h3>📖 ${o.book_title || 'كتاب غير معروف'}</h3>
         <p>💰 المبلغ المطلوب: ${currencyValue}</p>
         <p>📌 الحالة: <span class="status ${statusClass}">${statusText}</span></p>
-        ${o.status === 'approved' && o.download_token && o.token_expires_at && new Date(o.token_expires_at) > new Date() ? 
-          `<a href="/api/download?token=${o.download_token}" target="_blank" class="btn">📥 تحميل الكتاب</a>` : 
-          (o.status === 'approved' ? '<p>⚠️ رابط التحميل غير متاح حالياً (انتهت صلاحيته)</p>' : '')
-        }
-        ${(o.status === 'pending' && o.method === 'bank') ? `<button class="btn" onclick="openProofModal(${o.id})">📎 رفع إيصال الدفع</button>` : ''}
-        ${(o.status === 'pending' && (o.method === 'trx' || o.method === 'usdt')) ? `<button class="btn" onclick="openResumeModal(${o.id}, '${o.method}', ${o.amount})">🔄 استكمال الدفع</button>` : ''}
+        ${downloadLink}
+        ${downloadExpired}
+        ${actionButtons}
       </div>
     `;
   }).join('');
