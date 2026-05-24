@@ -7,126 +7,44 @@
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 <style>
-  /* تنسيقات مخصصة لتحسين عرض الكتب */
-  .search-container {
-    margin: 20px auto;
-    text-align: center;
-    max-width: 600px;
-    width: 100%;
-  }
-  #searchInput {
-    width: 100%;
-    padding: 12px 20px;
-    font-size: 1rem;
-    border-radius: 50px;
-    border: 1px solid #ddd;
-    transition: all 0.3s ease;
-  }
-  #searchInput:focus {
-    border-color: #e94560;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(233,69,96,0.1);
-  }
-  .pagination {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin-top: 30px;
-    margin-bottom: 20px;
-  }
-  .pagination button {
-    background: #e94560;
+  /* تنسيقات مخصصة */
+  .search-container { margin: 20px auto; text-align: center; max-width: 600px; width: 100%; }
+  #searchInput { width: 100%; padding: 12px 20px; font-size: 1rem; border-radius: 50px; border: 1px solid #ddd; transition: all 0.3s; }
+  #searchInput:focus { border-color: #e94560; outline: none; box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+  .pagination { display: flex; justify-content: center; gap: 15px; margin-top: 30px; margin-bottom: 20px; }
+  .pagination button { background: #e94560; color: white; border: none; padding: 8px 20px; border-radius: 30px; cursor: pointer; font-size: 0.9rem; font-weight: bold; }
+  .pagination button:disabled { background: #ccc; cursor: not-allowed; }
+  .page-info { text-align: center; font-size: 0.9rem; color: #777; margin-bottom: 10px; }
+  .card { background: #fff; border-radius: 12px; padding: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: transform 0.2s; display: flex; flex-direction: column; height: 100%; }
+  .card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+  .card img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 8px; margin-bottom: 8px; }
+  .card h3 { font-size: 1rem; font-weight: 700; margin: 8px 0 4px; color: #1a1a2e; line-height: 1.4; height: 2.8em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .card .author { font-size: 0.8rem; color: #666; margin-bottom: 6px; }
+  .card .price { font-size: 0.95rem; font-weight: bold; margin: 6px 0; color: #e94560; }
+  .card-buttons { display: flex; flex-direction: row; gap: 8px; margin-top: auto; justify-content: space-between; }
+  .card-buttons .btn { flex: 1; padding: 6px 10px; font-size: 0.75rem; text-align: center; white-space: nowrap; }
+  @media (max-width: 480px) { .card-buttons .btn { font-size: 0.7rem; white-space: normal; padding: 5px 4px; } .card h3 { font-size: 0.9rem; } }
+  /* زر التواصل عبر تلغرام */
+  .telegram-contact {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 1000;
+    background: #0088cc;
     color: white;
-    border: none;
-    padding: 8px 20px;
-    border-radius: 30px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: bold;
-  }
-  .pagination button:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-  }
-  .page-info {
-    text-align: center;
-    font-size: 0.9rem;
-    color: #777;
-    margin-bottom: 10px;
-  }
-  /* تنسيق البطاقات */
-  .card {
-    background: #fff;
-    border-radius: 12px;
-    padding: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    transition: transform 0.2s, box-shadow 0.2s;
+    border-radius: 50px;
+    padding: 10px 18px;
     display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-  .card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-  }
-  .card img {
-    width: 100%;
-    aspect-ratio: 2 / 3;
-    object-fit: cover;
-    border-radius: 8px;
-    margin-bottom: 8px;
-  }
-  .card h3 {
-    font-size: 1rem;
-    font-weight: 700;
-    margin: 8px 0 4px;
-    color: #1a1a2e;
-    line-height: 1.4;
-    height: 2.8em;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-  }
-  .card .author {
-    font-size: 0.8rem;
-    color: #666;
-    margin-bottom: 6px;
-  }
-  .card .price {
-    font-size: 0.95rem;
-    font-weight: bold;
-    margin: 6px 0;
-    color: #e94560;
-  }
-  /* أزرار البطاقة */
-  .card-buttons {
-    display: flex;
-    flex-direction: row;
+    align-items: center;
     gap: 8px;
-    margin-top: auto;
-    justify-content: space-between;
+    text-decoration: none;
+    font-family: 'Cairo', sans-serif;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transition: transform 0.2s;
+    font-size: 0.9rem;
   }
-  .card-buttons .btn {
-    flex: 1;
-    padding: 6px 10px;
-    font-size: 0.75rem;
-    text-align: center;
-    white-space: nowrap;
-  }
-  @media (max-width: 480px) {
-    .card-buttons .btn {
-      font-size: 0.7rem;
-      white-space: normal;
-      padding: 5px 4px;
-    }
-    .card h3 {
-      font-size: 0.9rem;
-    }
-    .card .author, .card .price {
-      font-size: 0.75rem;
-    }
-  }
+  .telegram-contact:hover { transform: scale(1.05); background: #006699; }
 </style>
 </head>
 <body>
@@ -143,14 +61,11 @@
 <div class="container">
   <h1 style="text-align:center;">مرحباً بك في مكتبة الكتب الرقمية</h1>
   <p style="text-align:center;">اختر كتابك المفضل وادفع بسهولة (عملات رقمية أو تحويل كاشي)</p>
-  
   <div class="search-container">
     <input type="text" id="searchInput" placeholder="🔍 ابحث عن كتاب (عنوان، مؤلف)...">
   </div>
-  
   <div class="grid" id="homeBooksGrid"></div>
   <div id="noResultsMsg" class="no-results" style="display:none;">لا توجد كتب تطابق بحثك</div>
-  
   <div class="pagination">
     <button id="prevPageBtn" onclick="changePage(-1)" disabled>⟪ السابق</button>
     <span class="page-info" id="pageInfo"></span>
@@ -158,7 +73,7 @@
   </div>
 </div>
 
-<!-- مودال الدفع (للكتب المدفوعة فقط) -->
+<!-- مودال الدفع (للكتب المدفوعة) -->
 <div class="modal" id="payModal">
   <div class="modal-content">
     <h3>اختر طريقة الدفع</h3>
@@ -187,9 +102,12 @@
   </div>
 </div>
 
+<!-- زر التواصل عبر تلغرام -->
+<a href="https://t.me/bemoSTR" target="_blank" class="telegram-contact">📩 تواصل & بلاغ</a>
+
 <script src="/script.js"></script>
 <script>
-// ========== إعدادات سعر الصرف والخصم ==========
+// ========== إعدادات ==========
 const USD_TO_LOCAL = 4000;
 const LOCAL_CURRENCY_NAME = "ج.س";
 const USD_TO_TRX = 6.7;
@@ -238,6 +156,7 @@ async function downloadFreeBook(bookId) {
       proof: null
     });
     if (res.success && res.downloadToken) {
+      // توجيه إلى رابط التحميل المؤقت
       window.location.href = `/api/download?token=${res.downloadToken}`;
     } else {
       showToast('حدث خطأ أثناء تحميل الكتاب المجاني');
@@ -265,7 +184,7 @@ function renderPage() {
     const priceDisplay = isFree ? '<span style="color:#27ae60; font-weight:bold;">🎁 مجاني</span>' : `${book.price} $`;
     let buttonHtml = '';
     if (isFree) {
-      buttonHtml = `<button class="btn" onclick="downloadFreeBook(${book.id})">📥 تحميل </button>`;
+      buttonHtml = `<button class="btn" onclick="downloadFreeBook(${book.id})">📥 تحميل مجاني</button>`;
     } else {
       buttonHtml = `<button class="btn" onclick='openModal(${JSON.stringify(book).replace(/"/g, '&quot;')})'>شراء</button>`;
     }
@@ -318,7 +237,7 @@ function loadBooksAndRender() {
 }
 loadBooksAndRender();
 
-// دوال الدفع للكتب المدفوعة
+// دوال الدفع للكتب المدفوعة (تبقى كما هي)
 function openModal(book) {
   selectedBook = book;
   const method = document.getElementById('payMethod').value;
@@ -446,4 +365,4 @@ async function verifyPayment(orderId, method, usdPrice) {
 }
 </script>
 </body>
-</html>
+  </html> 
