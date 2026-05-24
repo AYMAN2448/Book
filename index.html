@@ -133,16 +133,24 @@ fetch('/books.json')
   .then(books => {
     const grid = document.getElementById('homeBooksGrid');
     if (!grid) return;
-    grid.innerHTML = books.map(book => `
-      <div class="card">
-        <img src="${book.cover}" style="width:100%; border-radius:8px;">
-        <h3>${book.title}</h3>
-        <p>السعر: ${book.price} $</p>
-        <div class="card-buttons">
-          <button class="btn" onclick='openModal(${JSON.stringify(book).replace(/"/g, '&quot;')})'>شراء</button>
-          <button class="btn share-btn" onclick="shareBook(${book.id}, '${book.title.replace(/'/g, "\\'")}', ${book.price})">📤 مشاركة</button>
+    grid.innerHTML = books.map(book => {
+      const isFree = (book.price === 0);
+      const buttonHtml = isFree
+        ? `<button class="btn free-download-btn" onclick="downloadFreeBook(${book.id})">📥 تحميل مجاني</button>`
+        : `<button class="btn" onclick='openModal(${JSON.stringify(book).replace(/"/g, '&quot;')})'>شراء</button>`;
+      return `
+        <div class="card">
+          <img src="${book.cover}" style="width:100%; border-radius:8px;">
+          <h3>${book.title}</h3>
+          <p>السعر: ${book.price} $</p>
+          <div class="card-buttons">
+            ${buttonHtml}
+            <button class="btn share-btn" onclick="shareBook(${book.id}, '${book.title.replace(/'/g, "\\'")}', ${book.price})">📤 مشاركة</button>
+          </div>
         </div>
-      </div>
+      `;
+    }).join('');
+  });
     `).join('');
   }).catch(e => console.error(e));
 
