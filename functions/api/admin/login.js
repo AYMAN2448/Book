@@ -4,5 +4,6 @@ export async function onRequestPost({ request, env }) {
   if (!admin || admin.password !== password) {
     return Response.json({ success: false }, { status: 401 });
   }
-  return Response.json({ success: true, token: 'secret_admin_token' });
+  // نعيد أيضاً username ويمكن إضافة role لاحقاً
+  return Response.json({ success: true, token: 'secret_admin_token', username: admin.username });
 }
