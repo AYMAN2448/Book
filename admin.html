@@ -12,14 +12,14 @@
   .completed { border-right: 4px solid #00b894; }
   .timestamp { font-size: 0.7rem; color: #777; margin-top: 5px; }
   .load-more-btn { display: block; width: 100%; margin-top: 15px; }
-  .admin-name { font-weight: bold; margin-left: 15px; color: #e94560; }
+  .admin-name { font-weight: bold; margin-left: 15px; color: #e94560; background: #f0f0f0; padding: 5px 10px; border-radius: 20px; }
 </style>
 </head>
 <body>
 <header>
   <h2>لوحة التحكم</h2>
-  <div style="display: flex; align-items: center;">
-    <span class="admin-name" id="adminName">مشرف</span>
+  <div style="display: flex; align-items: center; gap: 10px;">
+    <span class="admin-name" id="adminName">⚙️ جاري التحميل...</span>
     <button class="btn" onclick="logout()" style="background:#ccc; color:#333;">خروج</button>
   </div>
 </header>
@@ -38,11 +38,10 @@
 <script>
 const token = localStorage.getItem('admin_token');
 const adminUsername = localStorage.getItem('admin_username');
-if (!token) location.href = '/admin-login.html';
-
-// عرض اسم الأدمن
-if (adminUsername) {
-  document.getElementById('adminName').innerText = adminUsername;
+if (!token) {
+  location.href = '/admin-login.html';
+} else {
+  document.getElementById('adminName').innerHTML = `👤 مرحباً ${adminUsername || 'مشرف'}`;
 }
 
 let currentPage = 1;
@@ -63,7 +62,6 @@ async function loadOrders(append = false) {
     return;
   }
 
-  // عرض الطلبات المعلقة (مرة واحدة فقط، عند التحميل الأول أو عند التحديث بعد الموافقة/الرفض)
   if (!append) {
     const pendingDiv = document.getElementById('pendingOrdersList');
     if (!data.pending.length) {
@@ -86,7 +84,6 @@ async function loadOrders(append = false) {
     }
   }
 
-  // عرض الطلبات المكتملة (إلحاق أو استبدال)
   const completedDiv = document.getElementById('completedOrdersList');
   if (!append) completedDiv.innerHTML = '';
   if (data.completed.length === 0 && !append) {
@@ -103,14 +100,12 @@ async function loadOrders(append = false) {
     `).join('');
   }
 
-  // إظهار أو إخفاء زر "التالي"
   const loadMoreBtn = document.getElementById('loadMoreBtn');
   if (data.hasMore) {
     loadMoreBtn.style.display = 'block';
   } else {
     loadMoreBtn.style.display = 'none';
   }
-  
   isLoading = false;
 }
 
@@ -131,7 +126,6 @@ async function updateOrder(orderId, action) {
   const data = await res.json();
   if (data.success) {
     alert('تم التحديث');
-    // إعادة ضبط الصفحة إلى 1 وإعادة تحميل الكل (لتحديث كلا القائمتين)
     currentPage = 1;
     loadOrders(false);
   } else {
@@ -145,10 +139,7 @@ function logout() {
   location.href = '/admin-login.html';
 }
 
-// تحميل أول مرة
 loadOrders(false);
-
-// ربط زر التالي
 document.getElementById('loadMoreBtn').addEventListener('click', loadMore);
 </script>
 </body>
