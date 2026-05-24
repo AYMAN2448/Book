@@ -4,7 +4,5 @@ export async function onRequestPost({ request, env }) {
   if (!admin || admin.password !== password) {
     return Response.json({ success: false }, { status: 401 });
   }
-  // استخدام التوكن الثابت الذي يتحقق منه orders.js
-  const token = 'secret_admin_token';
-  return Response.json({ success: true, token, username });
+  return Response.json({ success: true, token: 'secret_admin_token' });
 }

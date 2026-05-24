@@ -4,29 +4,12 @@ export async function onRequestGet({ request, env }) {
   const token = auth.slice(7);
   if (token !== 'secret_admin_token') return Response.json({ success: false }, { status: 401 });
 
-  const url = new URL(request.url);
-  const page = parseInt(url.searchParams.get('page') || '1');
-  const limit = 10;
-  const offset = (page - 1) * limit;
-
-  // 1. الطلبات المعلقة (لا نحتاج ترحيلها، عددها قليل عادة)
-  const pendingOrders = await env.DB.prepare(
+  // جلب الطلبات من قاعدة البيانات
+  const ordersResult = await env.DB.prepare(
     `SELECT * FROM orders WHERE status IN ('pending', 'pending_review') ORDER BY created_at DESC`
   ).all();
-
-  // 2. الطلبات المكتملة مع ترحيل
-  const completedOrders = await env.DB.prepare(
-    `SELECT * FROM orders WHERE status = 'approved' ORDER BY created_at DESC LIMIT ? OFFSET ?`
-  ).bind(limit, offset).all();
-
-  // 3. العدد الإجمالي للطلبات المكتملة لتحديد وجود صفحات أخرى
-  const totalCountResult = await env.DB.prepare(
-    `SELECT COUNT(*) as count FROM orders WHERE status = 'approved'`
-  ).first();
-  const totalCompleted = totalCountResult ? totalCountResult.count : 0;
-  const hasMore = offset + limit < totalCompleted;
-
-  // 4. جلب بيانات الكتب من books.json
+  
+  // جلب بيانات الكتب من books.json
   let books = [];
   try {
     const booksRes = await fetch('https://' + request.headers.get('host') + '/books.json');
@@ -35,23 +18,17 @@ export async function onRequestGet({ request, env }) {
     console.error('Failed to fetch books.json', e);
   }
 
-  // دالة لإضافة عنوان الكتاب لكل طلب
-  const enrichOrders = (orders) => orders.results.map(order => {
+  // إضافة اسم الكتاب و session_id كمعرف للمستخدم
+  const ordersWithDetails = ordersResult.results.map(order => {
     const book = books.find(b => b.id == order.book_id);
     return {
       ...order,
       book_title: book ? book.title : 'غير معروف',
-      book_price: book ? book.price : order.amount
+      user_display: order.session_id ? order.session_id.substring(0, 12) + '...' : 'غير معروف'
     };
   });
 
-  return Response.json({
-    success: true,
-    pending: enrichOrders(pendingOrders),
-    completed: enrichOrders(completedOrders),
-    hasMore,
-    page
-  });
+  return Response.json({ success: true, orders: ordersWithDetails });
 }
 
 export async function onRequestPost({ request, env }) {
@@ -65,7 +42,7 @@ export async function onRequestPost({ request, env }) {
   if (!order) return Response.json({ success: false, error: 'الطلب غير موجود' });
 
   if (action === 'approve') {
-    // جلب بيانات الكتاب من books.json (للتأكد من وجوده)
+    // جلب بيانات الكتاب من books.json
     const booksRes = await fetch('https://' + request.headers.get('host') + '/books.json');
     const books = await booksRes.json();
     const book = books.find(b => b.id == order.book_id);
