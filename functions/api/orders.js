@@ -4,7 +4,7 @@ export async function onRequestGet({ request, env }) {
     return Response.json({ success: false, orders: [], message: 'Missing session' });
   }
 
-  // 1. جلب آخر 5 طلبات للمستخدم
+  // جلب آخر 5 طلبات للمستخدم
   const ordersResult = await env.DB.prepare(
     `SELECT * FROM orders 
      WHERE session_id = ? 
@@ -16,10 +16,7 @@ export async function onRequestGet({ request, env }) {
     return Response.json({ success: true, orders: [] });
   }
 
-  // 2. استخراج book_ids الفريدة
-  const bookIds = [...new Set(ordersResult.results.map(o => o.book_id))];
-  
-  // 3. جلب بيانات الكتب من books.json
+  // جلب بيانات الكتب
   let booksMap = new Map();
   try {
     const url = new URL(request.url);
@@ -27,43 +24,33 @@ export async function onRequestGet({ request, env }) {
     const allBooks = await booksRes.json();
     allBooks.forEach(book => booksMap.set(book.id, book));
   } catch (e) {
-    console.error('Failed to fetch books data', e);
+    console.error('Failed to fetch books', e);
   }
 
-  // 4. دمج البيانات مع تحديد العملة المناسبة (بدون فودافون كاش)
+  // تحويل الطلبات مع تحديد طريقة الدفع والعملة (بدون فودافون كاش ولا رصيد داخلي)
   const ordersWithDetails = ordersResult.results.map(order => {
     const book = booksMap.get(order.book_id);
-    
+    let paymentMethod = order.payment_method || ''; // قد يكون null أو undefined
+    let paymentMethodDisplay = '';
     let currencyDisplay = '';
     let amountDisplay = '';
-    let paymentMethodDisplay = '';
 
-    switch (order.payment_method) {
-      case 'usdt':
-        currencyDisplay = 'USDT (TRC20)';
-        amountDisplay = `${order.amount} USDT`;
-        paymentMethodDisplay = 'USDT (TRC20)';
-        break;
-      case 'trx':
-        currencyDisplay = 'TRX';
-        amountDisplay = `${order.amount} TRX`;
-        paymentMethodDisplay = 'TRX';
-        break;
-      case 'bank':
-      case 'cash':
-        currencyDisplay = 'جنيه سوداني (تحويل كاشي)';
-        amountDisplay = `${order.amount} جنيه`;
-        paymentMethodDisplay = 'تحويل كاشي';
-        break;
-      case 'balance':
-        currencyDisplay = 'دولار (رصيد داخلي)';
-        amountDisplay = `${order.amount} دولار`;
-        paymentMethodDisplay = 'رصيد داخلي';
-        break;
-      default:
-        currencyDisplay = 'غير محدد';
-        amountDisplay = `${order.amount} ${order.currency === 'EGP' ? 'جنيه' : 'دولار'}`;
-        paymentMethodDisplay = order.payment_method || 'غير معروف';
+    // تطبيع القيم: تحويل الحروف إلى صغيرة ومقارنة
+    const pm = paymentMethod.toLowerCase();
+
+    if (pm === 'usdt') {
+      paymentMethodDisplay = 'USDT (TRC20)';
+      currencyDisplay = 'USDT';
+      amountDisplay = `${order.amount} USDT`;
+    } else if (pm === 'trx') {
+      paymentMethodDisplay = 'TRX';
+      currencyDisplay = 'TRX';
+      amountDisplay = `${order.amount} TRX`;
+    } else {
+      // أي طريقة دفع أخرى (بما في ذلك 'bank', 'cash', null, undefined) نعتبرها "تحويل كاشي"
+      paymentMethodDisplay = 'تحويل كاشي';
+      currencyDisplay = 'جنيه سوداني';
+      amountDisplay = `${order.amount} جنيه`;
     }
 
     return {
@@ -92,6 +79,6 @@ function getStatusText(status) {
     case 'pending': return '⏳ قيد المراجعة';
     case 'failed': return '❌ مرفوض';
     case 'approved': return '✅ تمت الموافقة';
-    default: return status;
+    default: return status || 'غير معروف';
   }
 } 
