@@ -19,6 +19,17 @@
     color: #777;
     font-size: 0.8rem;
   }
+  .old-price {
+    text-decoration: line-through;
+    color: #999;
+    margin-left: 8px;
+    font-size: 0.9rem;
+  }
+  .new-price {
+    color: #27ae60;
+    font-weight: bold;
+    font-size: 1rem;
+  }
 </style>
 </head>
 <body>
@@ -56,11 +67,11 @@
 
 <script src="/script.js"></script>
 <script>
-// ========== إعدادات العملات (يجب أن تتطابق مع القيم في index.html) ==========
-const USD_TO_LOCAL = 4000;
+// ========== إعدادات العملات والخصم (يجب أن تطابق القيم في index.html) ==========
+const USD_TO_LOCAL = 4000;      // 1 دولار = 4000 ج.س (يجب مطابقته مع صفحة الدفع)
 const LOCAL_CURRENCY_NAME = "ج.س";
-const USD_TO_TRX = 6.7;
-const DISCOUNT_RATE = 0.5;  // خصم 50% للعملة المحلية
+const USD_TO_TRX = 6.7;         // 1 دولار = 6.7 TRX
+const DISCOUNT_RATE = 0.3;      // خصم 30% للعملة المحلية (غيّره إلى 0.3 إذا كان الخصم 30%)
 
 let currentOrderId = null;
 let resumeOrderId = null;
@@ -79,14 +90,20 @@ async function loadOrders() {
     return;
   }
 
-  // عرض آخر 5 طلبات (الـ API جلبها مرتبة من الأحدث)
   list.innerHTML = orders.map(o => {
-    // تحديد العملة والقيمة بناءً على طريقة الدفع
     let currencyValue = '';
+    let originalPrice = '';
+    let discountText = '';
+
     if (o.method === 'bank') {
       const originalLocal = o.amount * USD_TO_LOCAL;
       const discountedLocal = originalLocal * (1 - DISCOUNT_RATE);
-      currencyValue = `${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME} (بعد الخصم ${DISCOUNT_RATE*100}%)`;
+      originalPrice = `${originalLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME}`;
+      currencyValue = `
+        <span class="old-price">${originalPrice}</span>
+        <span class="new-price">${discountedLocal.toFixed(2)} ${LOCAL_CURRENCY_NAME}</span>
+        <span style="font-size:0.7rem; color:#e94560;"> (بعد خصم ${DISCOUNT_RATE*100}%)</span>
+      `;
     } else if (o.method === 'usdt') {
       currencyValue = `${o.amount} USDT`;
     } else if (o.method === 'trx') {
@@ -96,7 +113,6 @@ async function loadOrders() {
       currencyValue = `${o.amount} $`;
     }
 
-    // ترجمة حالة الطلب
     let statusText = '';
     let statusClass = '';
     switch (o.status) {
@@ -136,7 +152,7 @@ async function loadOrders() {
   }).join('');
 }
 
-// ========== دوال رفع الإيصال ==========
+// ========== باقي الدوال (نفس السابق) ==========
 function openProofModal(id) {
   currentOrderId = id;
   document.getElementById('proofModal').classList.add('active');
@@ -157,7 +173,6 @@ async function submitProof() {
   }
 }
 
-// ========== دوال استكمال الدفع للعملات الرقمية ==========
 function openResumeModal(orderId, method, amount) {
   resumeOrderId = orderId;
   resumeMethod = method;
@@ -195,7 +210,6 @@ async function verifyResumePayment() {
   }
 }
 
-// ========== دوال مساعدة ==========
 function copyToClipboard(text) {
   navigator.clipboard.writeText(text).then(() => toast('✅ تم نسخ العنوان')).catch(() => toast('❌ فشل النسخ'));
 }
