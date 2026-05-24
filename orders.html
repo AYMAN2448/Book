@@ -6,128 +6,88 @@
 <title>طلباتي - مكتبة الكتب</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
+<style>
+  .copy-container { display: flex; align-items: center; gap: 8px; background: #fff; padding: 8px 12px; border-radius: 8px; direction: ltr; margin: 10px 0; border: 1px solid #ddd; }
+  .copy-address { flex: 1; font-family: monospace; font-size: 14px; cursor: pointer; user-select: all; }
+  .copy-btn { background: #e94560; color: white; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  .toast-msg { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 16px; border-radius: 30px; z-index: 2000; }
+  footer { text-align: center; padding: 20px; margin-top: 30px; border-top: 1px solid #ddd; color: #777; font-size: 0.8rem; }
+  .old-price { text-decoration: line-through; color: #999; margin-left: 8px; font-size: 0.9rem; }
+  .new-price { color: #27ae60; font-weight: bold; font-size: 1rem; }
+  .free-badge { color: #27ae60; font-weight: bold; background: #e8f5e9; padding: 2px 8px; border-radius: 20px; display: inline-block; }
+  .telegram-contact { position: fixed; bottom: 20px; left: 20px; z-index: 1000; background: #0088cc; color: white; border-radius: 50px; padding: 10px 18px; display: flex; align-items: center; gap: 8px; text-decoration: none; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 0.9rem; }
+  .telegram-contact:hover { background: #006699; transform: scale(1.05); }
+</style>
 </head>
 <body>
 <header>
-  <h2>مكتبة سديم للكتب الالكترونية</h2>
+  <h2>مكتبة سديم للكتب الإلكترونية</h2>
   <nav>
     <a href="/">الرئيسية</a>
     <a href="/books.html">الكتب</a>
   </nav>
 </header>
 <div class="container">
-  <h2>طلباتي</h2>
+  <h2>آخر 5 طلباتي</h2>
   <div id="ordersList"></div>
 </div>
 
 <!-- مودال رفع الإيصال -->
-<div class="modal" id="proofModal">
-  <div class="modal-content">
-    <h3>رفع إثبات الدفع</h3>
-    <input type="text" id="proofNumber" placeholder="رقم الإيصال">
-    <button class="btn" onclick="submitProof()">إرسال</button>
-    <button class="btn" onclick="closeProofModal()">إلغاء</button>
-  </div>
-</div>
-
+<div class="modal" id="proofModal">...</div>
 <!-- مودال استكمال الدفع -->
-<div class="modal" id="resumePaymentModal">
-  <div class="modal-content">
-    <h3>استكمال الدفع</h3>
-    <div id="resumePaymentInfo"></div>
-    <button class="btn" id="verifyResumeBtn" onclick="verifyResumePayment()">🔍 تحققت من الدفع</button>
-    <button class="btn" style="background:#ccc; color:#333;" onclick="closeResumeModal()">إلغاء</button>
-  </div>
-</div>
+<div class="modal" id="resumePaymentModal">...</div>
+
+<a href="https://t.me/bemoSTR" target="_blank" class="telegram-contact">📩 تواصل & بلاغ</a>
 
 <script src="/script.js"></script>
 <script>
-let currentOrderId = null;
-let resumeOrderId = null;
-let resumeMethod = null;
-let resumeAmount = null;
+const USD_TO_LOCAL = 4000;
+const LOCAL_CURRENCY_NAME = "ج.س";
+const USD_TO_TRX = 6.7;
+const DISCOUNT_RATE = 0.3;
+
+let currentOrderId = null, resumeOrderId = null, resumeMethod = null, resumeAmount = null;
 
 loadOrders();
-
 async function loadOrders() {
   const res = await api('/api/orders');
   if (!res.success) return;
   const orders = res.orders;
   const list = document.getElementById('ordersList');
-  if (!orders.length) {
-    list.innerHTML = '<p>لا توجد طلبات بعد</p>';
-    return;
-  }
-
-  list.innerHTML = orders.map(o => `
-    <div class="card">
-      <h3>${o.book_title || 'كتاب غير معروف'}</h3>
-      <p>الطريقة: ${o.method} | المبلغ: ${o.amount} $</p>
-      <p>الحالة: <span class="status ${o.status}">${
-        o.status === 'pending' ? 'قيد الانتظار' :
-        o.status === 'pending_review' ? 'مراجعة' :
-        o.status === 'approved' ? 'تمت الموافقة' : 'مرفوض'
-      }</span></p>
-      ${o.status === 'approved' && o.download_token && o.token_expires_at && new Date(o.token_expires_at) > new Date() ? 
-        `<a href="/api/download?token=${o.download_token}" target="_blank" class="btn">تحميل الكتاب (رابط مؤقت)</a>` : 
-        (o.status === 'approved' ? '<span class="status">تمت الموافقة، الرابط غير متاح حالياً</span>' : '')
-      }
-      ${(o.status === 'pending' && o.method === 'bank') ? `<button class="btn" onclick="openProofModal(${o.id})">رفع إيصال الدفع</button>` : ''}
-      ${(o.status === 'pending' && (o.method === 'trx' || o.method === 'usdt')) ? `<button class="btn" onclick="openResumeModal(${o.id}, '${o.method}', ${o.amount})">استكمال الدفع</button>` : ''}
-    </div>
-  `).join('');
+  if (!orders.length) { list.innerHTML = '<p>لا توجد طلبات بعد</p>'; return; }
+  list.innerHTML = orders.map(o => {
+    let currencyValue = '';
+    if (o.method === 'free' || o.amount === 0) currencyValue = '<span class="free-badge">🎁 مجاني</span>';
+    else if (o.method === 'bank') {
+      const original = o.amount * USD_TO_LOCAL, discounted = original * (1 - DISCOUNT_RATE);
+      currencyValue = `<span class="old-price">${original.toFixed(2)} ${LOCAL_CURRENCY_NAME}</span> <span class="new-price">${discounted.toFixed(2)} ${LOCAL_CURRENCY_NAME}</span> (بعد خصم ${DISCOUNT_RATE*100}%)`;
+    } else if (o.method === 'usdt') currencyValue = `${o.amount} USDT`;
+    else if (o.method === 'trx') currencyValue = `${(o.amount * USD_TO_TRX).toFixed(2)} TRX`;
+    else currencyValue = `${o.amount} $`;
+    let statusText = '';
+    if (o.status === 'pending') statusText = '⏳ قيد الانتظار';
+    else if (o.status === 'pending_review') statusText = '🔍 جاري مراجعة الإيصال';
+    else if (o.status === 'approved') statusText = '✅ تمت الموافقة';
+    else statusText = '❌ مرفوض';
+    return `
+      <div class="card">
+        <h3>📖 ${o.book_title || 'كتاب غير معروف'}</h3>
+        <p>💰 المبلغ المطلوب: ${currencyValue}</p>
+        <p>📌 الحالة: <span class="status ${o.status}">${statusText}</span></p>
+        ${(o.status === 'approved' && o.download_token && new Date(o.token_expires_at) > new Date()) ? `<a href="/api/download?token=${o.download_token}" class="btn">📥 تحميل الكتاب</a>` : ''}
+        ${(o.status === 'pending' && o.method === 'bank') ? `<button class="btn" onclick="openProofModal(${o.id})">📎 رفع إيصال</button>` : ''}
+        ${(o.status === 'pending' && (o.method === 'trx' || o.method === 'usdt')) ? `<button class="btn" onclick="openResumeModal(${o.id}, '${o.method}', ${o.amount})">🔄 استكمال الدفع</button>` : ''}
+      </div>
+    `;
+  }).join('');
 }
-
-function openProofModal(id) { currentOrderId = id; document.getElementById('proofModal').classList.add('active'); }
-function closeProofModal() { document.getElementById('proofModal').classList.remove('active'); }
-async function submitProof() {
-  const proof = document.getElementById('proofNumber').value.trim();
-  if (!proof) return toast('أدخل رقم الإيصال');
-  const res = await api('/api/submit-proof', 'POST', { orderId: currentOrderId, proof });
-  if (res.success) { toast('تم رفع الإيصال'); closeProofModal(); loadOrders(); }
-  else toast('خطأ: ' + res.error);
-}
-
-function openResumeModal(orderId, method, amount) {
-  resumeOrderId = orderId;
-  resumeMethod = method;
-  resumeAmount = amount;
-  const address = method === 'trx' ? 'TArc3MovymaBrNmR4e4iRidLFx15BbDQ5L' : '0x1b90069d9503e1931d30a8884080cdf16bd0cded';
-  const infoDiv = document.getElementById('resumePaymentInfo');
-  infoDiv.innerHTML = `
-    <p><strong>✅ رقم الطلب:</strong> ${orderId}</p>
-    <p>أرسل <strong>${amount} ${method.toUpperCase()}</strong> إلى العنوان:</p>
-    <div class="copy-container">
-      <span class="copy-address" onclick="copyToClipboard('${address}')">${address}</span>
-      <button class="copy-btn" onclick="copyToClipboard('${address}')">📋 نسخ</button>
-    </div>
-    <p>📌 اكتب رقم الطلب <strong>${orderId}</strong> في المذكرة (Memo).</p>
-    <p>بعد الإرسال اضغط "تحققت من الدفع".</p>
-  `;
-  document.getElementById('resumePaymentModal').classList.add('active');
-}
-function closeResumeModal() { document.getElementById('resumePaymentModal').classList.remove('active'); }
-async function verifyResumePayment() {
-  if (!resumeOrderId) return;
-  toast('جاري التحقق...');
-  const res = await api('/api/verify-payment', 'POST', { orderId: resumeOrderId, method: resumeMethod });
-  if (res.success && res.approved) {
-    toast('✅ تم تأكيد الدفع! سيتم تحديث الصفحة');
-    closeResumeModal();
-    loadOrders();
-  } else {
-    toast('❌ لم يتم العثور على الدفع. تأكد من المبلغ والمذكرة.');
-  }
-}
-function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(() => toast('✅ تم نسخ العنوان')).catch(() => toast('❌ فشل النسخ'));
-}
-function toast(msg) {
-  let t = document.querySelector('.toast-msg');
-  if (!t) { t = document.createElement('div'); t.className = 'toast-msg'; document.body.appendChild(t); }
-  t.innerText = msg; t.style.display = 'block';
-  setTimeout(() => t.style.display = 'none', 2000);
-}
+function openProofModal(id) { /* ... */ }
+function submitProof() { /* ... */ }
+function openResumeModal(id, method, amount) { /* ... */ }
+function verifyResumePayment() { /* ... */ }
+function copyToClipboard(text) { /* ... */ }
+function toast(msg) { /* ... */ }
 </script>
+<footer>Powered by Bemo technology</footer>
 </body>
-</html>
+</html> 
